@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --animate-shake: shake 0.45s ease-in-out;
+  --animate-confetti: confettiFall 2s ease-in forwards;
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    15%       { transform: translateX(-12px) rotate(-3deg); }
+    30%       { transform: translateX(10px) rotate(2deg); }
+    45%       { transform: translateX(-8px) rotate(-1deg); }
+    60%       { transform: translateX(6px); }
+    75%       { transform: translateX(-4px); }
+  }
+
+  @keyframes confettiFall {
+    0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #0f172a;
+  color: #f8fafc;
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}

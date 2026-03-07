@@ -1,0 +1,206 @@
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { db } from '../db/database'
+import { useUserStats } from '../hooks/useUserStats'
+import StreakBadge from '../components/StreakBadge'
+import PointDisplay from '../components/PointDisplay'
+
+// 日付を "YYYY/M/D" 形式に
+function fmtDate(date) {
+  const d = new Date(date)
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+}
+
+// 時刻を "HH:MM" 形式に
+function fmtTime(date) {
+  const d = new Date(date)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+// 日付キー "YYYY-MM-DD" を生成（アクティビティ判定用）
+function dayKey(date) {
+  const d = new Date(date)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+export default function Stats() {
+  const navigate = useNavigate()
+  const { stats, loading: statsLoading } = useUserStats()
+
+  const [challengeHistory, setChallengeHistory] = useState([])
+  const [weekActivity, setWeekActivity]         = useState([]) // 直近7日の情報
+  const [weakWords, setWeakWords]               = useState([])
+  const [loading, setLoading]                   = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      // 30問チャレンジ履歴（新しい順に最大20件）
+      const history = await db.challengeHistory
+        .orderBy('date').reverse().limit(20).toArray()
+      setChallengeHistory(history)
+
+      // 直近7日のアクティビティ
+      const today = new Date()
+      const days = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(today)
+        d.setDate(today.getDate() - (6 - i))
+        return d
+      })
+
+      const since = new Date(days[0])
+      since.setHours(0, 0, 0, 0)
+
+      const sinceTime = since.getTime()
+      const [allChLogs, allWuLogs] = await Promise.all([
+        db.challengeHistory.toArray(),
+        db.warmupHistory.toArray(),
+      ])
+      const chLogs = allChLogs.filter(r => new Date(r.date).getTime() >= sinceTime)
+      const wuLogs = allWuLogs.filter(r => new Date(r.date).getTime() >= sinceTime)
+
+      const activeKeys = new Set([
+        ...chLogs.map(r => dayKey(r.date)),
+        ...wuLogs.map(r => dayKey(r.date)),
+      ])
+
+      const clearKeys = new Set(
+        chLogs.filter(r => r.cleared).map(r => dayKey(r.date))
+      )
+
+      setWeekActivity(days.map(d => ({
+        date: d,
+        key: dayKey(d),
+        active: activeKeys.has(dayKey(d)),
+        cleared: clearKeys.has(dayKey(d)),
+      })))
+
+      // 苦手な単語トップ10（incorrectCountはインデックス外のためJS側でソート）
+      const allCards = await db.cards.toArray()
+      const topCards = allCards
+        .filter(c => (c.incorrectCount ?? 0) > 0)
+        .sort((a, b) => (b.incorrectCount ?? 0) - (a.incorrectCount ?? 0))
+        .slice(0, 10)
+      const wordIds = topCards.map(c => c.wordId)
+      if (wordIds.length > 0) {
+        const words = await db.words.where('id').anyOf(wordIds).toArray()
+        const wordMap = Object.fromEntries(words.map(w => [w.id, w]))
+        const ranked = topCards
+          .filter(c => (c.incorrectCount ?? 0) > 0 && wordMap[c.wordId])
+          .slice(0, 10)
+          .map(c => ({ card: c, word: wordMap[c.wordId] }))
+        setWeakWords(ranked)
+      }
+
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-white px-4 py-8">
+      <div className="max-w-sm mx-auto">
+        {/* ヘッダー */}
+        <div className="flex items-center mb-8">
+          <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white mr-4 text-lg">
+            ← 戻る
+          </button>
+          <h1 className="text-2xl font-bold">📊 学習記録</h1>
+        </div>
+
+        {/* ストリーク・ポイント */}
+        {!statsLoading && (
+          <div className="flex justify-around mb-8 p-5 bg-slate-800 rounded-2xl">
+            <StreakBadge streak={stats.currentStreak} />
+            <div className="w-px bg-slate-700" />
+            <PointDisplay points={stats.totalPoints} clearCount={stats.challengeClearCount} />
+          </div>
+        )}
+
+        {loading ? (
+          <p className="text-slate-600 text-center py-10">読み込み中…</p>
+        ) : (
+          <>
+            {/* 直近7日のアクティビティ */}
+            <section className="mb-8">
+              <h2 className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-3">直近7日間</h2>
+              <div className="flex gap-2 justify-between">
+                {weekActivity.map(({ date, active, cleared }) => (
+                  <div key={dayKey(date)} className="flex flex-col items-center gap-1 flex-1">
+                    <div
+                      className={`w-full aspect-square rounded-lg flex items-center justify-center text-lg transition-colors ${
+                        cleared ? 'bg-amber-500' :
+                        active  ? 'bg-blue-600' :
+                        'bg-slate-800'
+                      }`}
+                    >
+                      {cleared ? '🔥' : active ? '✓' : ''}
+                    </div>
+                    <span className="text-slate-500 text-xs">
+                      {DAY_LABELS[date.getDay()]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-4 mt-2 text-xs text-slate-600">
+                <span><span className="inline-block w-2 h-2 rounded-sm bg-amber-500 mr-1" />クリアあり</span>
+                <span><span className="inline-block w-2 h-2 rounded-sm bg-blue-600 mr-1" />学習あり</span>
+              </div>
+            </section>
+
+            {/* 苦手な単語トップ10 */}
+            <section className="mb-8">
+              <h2 className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-3">苦手な単語トップ10</h2>
+              {weakWords.length === 0 ? (
+                <p className="text-slate-600 text-sm">まだデータがありません</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {weakWords.map(({ card, word }, i) => (
+                    <div key={word.id} className="flex items-center gap-3 bg-slate-800 rounded-xl px-4 py-3">
+                      <span className="text-slate-600 text-sm w-5 text-right">{i + 1}</span>
+                      <span className="font-bold flex-1">{word.word}</span>
+                      <span className="text-slate-400 text-sm truncate max-w-24">{word.meaning}</span>
+                      <span className="text-red-400 text-sm font-bold tabular-nums">
+                        ×{card.incorrectCount}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* 30問チャレンジ履歴 */}
+            <section>
+              <h2 className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-3">30問チャレンジ履歴</h2>
+              {challengeHistory.length === 0 ? (
+                <p className="text-slate-600 text-sm">まだ挑戦記録がありません</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {challengeHistory.map(h => (
+                    <div key={h.id} className="flex items-center gap-3 bg-slate-800 rounded-xl px-4 py-3">
+                      <span className={`text-xl ${h.cleared ? '' : 'opacity-30'}`}>
+                        {h.cleared ? '🏆' : '💀'}
+                      </span>
+                      <span className="flex-1">
+                        <div className="text-sm font-bold">
+                          {h.parts?.join(' + ') ?? '—'}
+                        </div>
+                        <div className="text-slate-500 text-xs">
+                          {fmtDate(h.date)} {fmtTime(h.date)}
+                        </div>
+                      </span>
+                      <span className={`text-sm font-bold tabular-nums ${h.cleared ? 'text-amber-400' : 'text-slate-600'}`}>
+                        {h.result ?? 0} / 30
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
