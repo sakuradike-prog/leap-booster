@@ -8,10 +8,23 @@ const WORD_LISTS = [
   { id: 'old', label: 'LEAP旧版（1935語）', file: '/data/leap_words_old.csv' },
 ]
 
+function getStoredTimer() {
+  const v = parseInt(localStorage.getItem('challengeTimerSecs'), 10)
+  return (!isNaN(v) && v >= 3 && v <= 15) ? v : 7
+}
+
 export default function Settings() {
   const navigate = useNavigate()
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetDone, setResetDone] = useState(false)
+
+  // タイマー設定
+  const [challengeTimer, setChallengeTimer] = useState(getStoredTimer)
+  function handleTimerChange(val) {
+    const n = parseInt(val, 10)
+    setChallengeTimer(n)
+    localStorage.setItem('challengeTimerSecs', String(n))
+  }
 
   // 単語リスト切り替え
   const [showListConfirm, setShowListConfirm] = useState(false)
@@ -67,6 +80,30 @@ export default function Settings() {
           </button>
           <h1 className="text-2xl font-bold">⚙️ 設定</h1>
         </div>
+
+        {/* チャレンジ タイマー設定 */}
+        <section className="mb-8">
+          <h2 className="text-lg font-bold text-slate-200 mb-4 pb-2 border-b border-slate-700">
+            30問チャレンジ タイマー
+          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-slate-300 text-sm">1問あたりの制限時間</span>
+            <span className="text-3xl font-black text-blue-400">{challengeTimer}<span className="text-lg ml-1">秒</span></span>
+          </div>
+          <input
+            type="range"
+            min="3"
+            max="15"
+            step="1"
+            value={challengeTimer}
+            onChange={e => handleTimerChange(e.target.value)}
+            className="w-full accent-blue-500 mb-1"
+          />
+          <div className="flex justify-between text-xs text-slate-600">
+            <span>3秒（上級）</span>
+            <span>15秒（ゆっくり）</span>
+          </div>
+        </section>
 
         {/* 単語リスト切り替え */}
         <section className="mb-8">

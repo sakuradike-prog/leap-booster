@@ -5,6 +5,57 @@ import { useUserStats } from '../hooks/useUserStats'
 import StreakBadge from '../components/StreakBadge'
 import PointDisplay from '../components/PointDisplay'
 
+// ---- バッジ定義 ----
+const POINT_BADGES = [
+  { id: 'starter',    label: 'Starter',      emoji: '⭐', desc: '50pt達成',   threshold: 50 },
+  { id: 'challenger', label: 'Challenger',   emoji: '🥈', desc: '200pt達成',  threshold: 200 },
+  { id: 'walker',     label: 'LEAP Walker',  emoji: '🚶', desc: '500pt達成',  threshold: 500 },
+  { id: 'runner',     label: 'LEAP Runner',  emoji: '🏃', desc: '1000pt達成', threshold: 1000 },
+  { id: 'master',     label: 'LEAP Master',  emoji: '🎓', desc: '2000pt達成', threshold: 2000 },
+  { id: 'legend',     label: 'LEAP Legend',  emoji: '👑', desc: '5000pt達成', threshold: 5000 },
+]
+const STREAK_BADGES = [
+  { id: 'week',    label: '一週間の炎', emoji: '🔥',   desc: '7日連続学習',   threshold: 7 },
+  { id: 'month',   label: '一ヶ月の炎', emoji: '🌟',   desc: '30日連続学習',  threshold: 30 },
+  { id: 'eternal', label: '不滅の炎',   emoji: '💥',   desc: '100日連続学習', threshold: 100 },
+]
+
+function computeBadges(stats, challengeHistory) {
+  const cleared = challengeHistory.filter(h => h.cleared)
+  const partsCleared = new Set(cleared.flatMap(h => h.parts ?? []))
+  return {
+    point:     POINT_BADGES.map(b => ({ ...b, earned: stats.totalPoints >= b.threshold })),
+    streak:    STREAK_BADGES.map(b => ({ ...b, earned: stats.currentStreak >= b.threshold })),
+    challenge: [
+      { id: 'part1',   label: 'Part1 Cleared',      emoji: '📗', desc: 'Part1でクリア',       earned: partsCleared.has('Part1') },
+      { id: 'full',    label: 'Full LEAP Cleared',   emoji: '📚', desc: 'Part4を含むクリア',   earned: partsCleared.has('Part4') },
+      { id: 'triple',  label: 'Triple Crown',        emoji: '🏆', desc: 'クリア3回達成',       earned: cleared.length >= 3 },
+    ],
+  }
+}
+
+function BadgeGrid({ title, badges }) {
+  return (
+    <div className="mb-6">
+      <h3 className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">{title}</h3>
+      <div className="flex gap-2 flex-wrap">
+        {badges.map(b => (
+          <div
+            key={b.id}
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl min-w-14 transition-all ${
+              b.earned ? 'bg-slate-700 text-white' : 'bg-slate-800/50 text-slate-700'
+            }`}
+            title={b.desc}
+          >
+            <span className={`text-2xl ${b.earned ? '' : 'grayscale opacity-30'}`}>{b.emoji}</span>
+            <span className="text-xs font-bold leading-tight text-center" style={{ fontSize: '10px' }}>{b.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // 日付を "YYYY/M/D" 形式に
 function fmtDate(date) {
   const d = new Date(date)
@@ -122,6 +173,30 @@ export default function Stats() {
           <p className="text-slate-600 text-center py-10">読み込み中…</p>
         ) : (
           <>
+            {/* バッジ */}
+            {!statsLoading && (() => {
+              const badges = computeBadges(stats, challengeHistory)
+              const anyEarned = [...badges.point, ...badges.streak, ...badges.challenge].some(b => b.earned)
+              return (
+                <section className="mb-8">
+                  <h2 className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-3">
+                    称号・バッジ
+                  </h2>
+                  {anyEarned ? (
+                    <>
+                      <BadgeGrid title="ポイント" badges={badges.point} />
+                      <BadgeGrid title="ストリーク" badges={badges.streak} />
+                      <BadgeGrid title="チャレンジ" badges={badges.challenge} />
+                    </>
+                  ) : (
+                    <p className="text-slate-600 text-sm">
+                      学習を重ねるとバッジが獲得できます！まず 50pt を目指そう
+                    </p>
+                  )}
+                </section>
+              )
+            })()}
+
             {/* 直近7日のアクティビティ */}
             <section className="mb-8">
               <h2 className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-3">直近7日間</h2>

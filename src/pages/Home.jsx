@@ -38,9 +38,16 @@ export default function Home() {
           sub="ノーミスで30問連続正解を目指せ"
         />
         <NavButton
+          onClick={() => navigate('/daily')}
+          color="bg-green-700 hover:bg-green-600"
+          icon="⚡"
+          label="10問デイリークイズ"
+          sub="今日1回限り・4択・ポイント獲得"
+        />
+        <NavButton
           onClick={() => navigate('/warmup')}
           color="bg-amber-600 hover:bg-amber-500"
-          icon="⚡"
+          icon="🎤"
           label="瞬間英作文"
           sub="授業ウォームアップ用"
         />

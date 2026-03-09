@@ -1,0 +1,1763 @@
+{
+  "wordFamilies": [
+    {
+      "id": 1,
+      "root": "act",
+      "rootMeaning": "行動する"
+    },
+    {
+      "id": 2,
+      "root": "alter",
+      "rootMeaning": "他の"
+    },
+    {
+      "id": 3,
+      "root": "ann",
+      "rootMeaning": "年"
+    },
+    {
+      "id": 4,
+      "root": "apt",
+      "rootMeaning": "適した"
+    },
+    {
+      "id": 5,
+      "root": "aster",
+      "rootMeaning": "星"
+    },
+    {
+      "id": 6,
+      "root": "bio",
+      "rootMeaning": "生命"
+    },
+    {
+      "id": 7,
+      "root": "break",
+      "rootMeaning": "壊す"
+    },
+    {
+      "id": 8,
+      "root": "cap",
+      "rootMeaning": "取る"
+    },
+    {
+      "id": 9,
+      "root": "cause",
+      "rootMeaning": "原因"
+    },
+    {
+      "id": 10,
+      "root": "ced",
+      "rootMeaning": "進む・譲る"
+    },
+    {
+      "id": 11,
+      "root": "cept",
+      "rootMeaning": "受け取る"
+    },
+    {
+      "id": 12,
+      "root": "cert",
+      "rootMeaning": "確かな"
+    },
+    {
+      "id": 13,
+      "root": "cid",
+      "rootMeaning": "落ちる・切る"
+    },
+    {
+      "id": 14,
+      "root": "civ",
+      "rootMeaning": "市民"
+    },
+    {
+      "id": 15,
+      "root": "claim",
+      "rootMeaning": "叫ぶ"
+    },
+    {
+      "id": 16,
+      "root": "clar",
+      "rootMeaning": "明らかにする"
+    },
+    {
+      "id": 17,
+      "root": "class",
+      "rootMeaning": "階級"
+    },
+    {
+      "id": 18,
+      "root": "clin",
+      "rootMeaning": "傾く"
+    },
+    {
+      "id": 19,
+      "root": "clude",
+      "rootMeaning": "閉じる"
+    },
+    {
+      "id": 20,
+      "root": "comm",
+      "rootMeaning": "共に"
+    },
+    {
+      "id": 21,
+      "root": "commod",
+      "rootMeaning": "適切な"
+    },
+    {
+      "id": 22,
+      "root": "cord",
+      "rootMeaning": "心"
+    },
+    {
+      "id": 23,
+      "root": "corp",
+      "rootMeaning": "体"
+    },
+    {
+      "id": 24,
+      "root": "count",
+      "rootMeaning": "計算する"
+    },
+    {
+      "id": 25,
+      "root": "cover",
+      "rootMeaning": "覆う"
+    },
+    {
+      "id": 26,
+      "root": "cracy",
+      "rootMeaning": "支配"
+    },
+    {
+      "id": 27,
+      "root": "cred",
+      "rootMeaning": "信じる"
+    },
+    {
+      "id": 28,
+      "root": "crim",
+      "rootMeaning": "罪"
+    },
+    {
+      "id": 29,
+      "root": "crit",
+      "rootMeaning": "判断する"
+    },
+    {
+      "id": 30,
+      "root": "cult",
+      "rootMeaning": "耕す・育てる"
+    },
+    {
+      "id": 31,
+      "root": "cur",
+      "rootMeaning": "走る"
+    },
+    {
+      "id": 32,
+      "root": "cura",
+      "rootMeaning": "気にかける"
+    },
+    {
+      "id": 33,
+      "root": "dem",
+      "rootMeaning": "人々"
+    },
+    {
+      "id": 34,
+      "root": "destin",
+      "rootMeaning": "定める"
+    },
+    {
+      "id": 35,
+      "root": "dict",
+      "rootMeaning": "言う"
+    },
+    {
+      "id": 36,
+      "root": "disprop",
+      "rootMeaning": "不釣り合い"
+    },
+    {
+      "id": 37,
+      "root": "dom",
+      "rootMeaning": "支配する・家"
+    },
+    {
+      "id": 38,
+      "root": "dorm",
+      "rootMeaning": "眠る"
+    },
+    {
+      "id": 39,
+      "root": "duc",
+      "rootMeaning": "導く"
+    },
+    {
+      "id": 40,
+      "root": "ease",
+      "rootMeaning": "楽"
+    },
+    {
+      "id": 41,
+      "root": "element",
+      "rootMeaning": "要素"
+    },
+    {
+      "id": 42,
+      "root": "emerge",
+      "rootMeaning": "沈む・現れる"
+    },
+    {
+      "id": 43,
+      "root": "equal",
+      "rootMeaning": "等しい"
+    },
+    {
+      "id": 44,
+      "root": "exper",
+      "rootMeaning": "試す"
+    },
+    {
+      "id": 45,
+      "root": "fac",
+      "rootMeaning": "作る・する"
+    },
+    {
+      "id": 46,
+      "root": "fal",
+      "rootMeaning": "欺く・落ちる"
+    },
+    {
+      "id": 47,
+      "root": "fect",
+      "rootMeaning": "作る"
+    },
+    {
+      "id": 48,
+      "root": "fend",
+      "rootMeaning": "打つ・守る"
+    },
+    {
+      "id": 49,
+      "root": "fer",
+      "rootMeaning": "運ぶ"
+    },
+    {
+      "id": 50,
+      "root": "fin",
+      "rootMeaning": "終わり・限る"
+    },
+    {
+      "id": 51,
+      "root": "firm",
+      "rootMeaning": "固い"
+    },
+    {
+      "id": 52,
+      "root": "flect",
+      "rootMeaning": "曲がる"
+    },
+    {
+      "id": 53,
+      "root": "flict",
+      "rootMeaning": "打つ"
+    },
+    {
+      "id": 54,
+      "root": "flu",
+      "rootMeaning": "流れる"
+    },
+    {
+      "id": 55,
+      "root": "fold",
+      "rootMeaning": "折る"
+    },
+    {
+      "id": 56,
+      "root": "fore",
+      "rootMeaning": "前"
+    },
+    {
+      "id": 57,
+      "root": "form",
+      "rootMeaning": "形・形成する"
+    },
+    {
+      "id": 58,
+      "root": "fort",
+      "rootMeaning": "強い"
+    },
+    {
+      "id": 59,
+      "root": "frag",
+      "rootMeaning": "壊れやすい"
+    },
+    {
+      "id": 60,
+      "root": "frig",
+      "rootMeaning": "冷たい"
+    },
+    {
+      "id": 61,
+      "root": "fund",
+      "rootMeaning": "基礎"
+    },
+    {
+      "id": 62,
+      "root": "fus",
+      "rootMeaning": "注ぐ"
+    },
+    {
+      "id": 63,
+      "root": "gen",
+      "rootMeaning": "生む・種"
+    },
+    {
+      "id": 64,
+      "root": "gest",
+      "rootMeaning": "運ぶ・提案"
+    },
+    {
+      "id": 65,
+      "root": "grad",
+      "rootMeaning": "歩む・進む"
+    },
+    {
+      "id": 66,
+      "root": "graph",
+      "rootMeaning": "書く"
+    },
+    {
+      "id": 67,
+      "root": "grat",
+      "rootMeaning": "感謝・喜ぶ"
+    },
+    {
+      "id": 68,
+      "root": "grav",
+      "rootMeaning": "重い"
+    },
+    {
+      "id": 69,
+      "root": "ground",
+      "rootMeaning": "地面"
+    },
+    {
+      "id": 70,
+      "root": "hab",
+      "rootMeaning": "持つ・住む"
+    },
+    {
+      "id": 71,
+      "root": "head",
+      "rootMeaning": "頭"
+    },
+    {
+      "id": 72,
+      "root": "hered",
+      "rootMeaning": "受け継ぐ"
+    },
+    {
+      "id": 73,
+      "root": "hosp",
+      "rootMeaning": "客人"
+    },
+    {
+      "id": 74,
+      "root": "hum",
+      "rootMeaning": "地面・謙虚"
+    },
+    {
+      "id": 75,
+      "root": "id",
+      "rootMeaning": "同じ"
+    },
+    {
+      "id": 76,
+      "root": "imag",
+      "rootMeaning": "姿・模倣"
+    },
+    {
+      "id": 77,
+      "root": "ject",
+      "rootMeaning": "投げる"
+    },
+    {
+      "id": 78,
+      "root": "jud",
+      "rootMeaning": "判断する"
+    },
+    {
+      "id": 79,
+      "root": "lab",
+      "rootMeaning": "働く"
+    },
+    {
+      "id": 80,
+      "root": "lect",
+      "rootMeaning": "選ぶ・読む"
+    },
+    {
+      "id": 81,
+      "root": "leg",
+      "rootMeaning": "法・選ぶ"
+    },
+    {
+      "id": 82,
+      "root": "lev",
+      "rootMeaning": "軽い・持ち上げる"
+    },
+    {
+      "id": 83,
+      "root": "like",
+      "rootMeaning": "似ている"
+    },
+    {
+      "id": 84,
+      "root": "lim",
+      "rootMeaning": "境界・限る"
+    },
+    {
+      "id": 85,
+      "root": "line",
+      "rootMeaning": "線"
+    },
+    {
+      "id": 86,
+      "root": "lingu",
+      "rootMeaning": "言語"
+    },
+    {
+      "id": 87,
+      "root": "lit",
+      "rootMeaning": "文字・文学"
+    },
+    {
+      "id": 88,
+      "root": "loc",
+      "rootMeaning": "場所"
+    },
+    {
+      "id": 89,
+      "root": "log",
+      "rootMeaning": "言葉・論理"
+    },
+    {
+      "id": 90,
+      "root": "long",
+      "rootMeaning": "長い"
+    },
+    {
+      "id": 91,
+      "root": "man",
+      "rootMeaning": "手・操る"
+    },
+    {
+      "id": 92,
+      "root": "mand",
+      "rootMeaning": "命じる"
+    },
+    {
+      "id": 93,
+      "root": "mat",
+      "rootMeaning": "母・熟す"
+    },
+    {
+      "id": 94,
+      "root": "medi",
+      "rootMeaning": "中間"
+    },
+    {
+      "id": 95,
+      "root": "medic",
+      "rootMeaning": "医者・治療する"
+    },
+    {
+      "id": 96,
+      "root": "mem",
+      "rootMeaning": "記憶"
+    },
+    {
+      "id": 97,
+      "root": "merg",
+      "rootMeaning": "沈む・混ざる"
+    },
+    {
+      "id": 98,
+      "root": "min",
+      "rootMeaning": "小さい"
+    },
+    {
+      "id": 99,
+      "root": "mind",
+      "rootMeaning": "心"
+    },
+    {
+      "id": 100,
+      "root": "miss",
+      "rootMeaning": "送る"
+    },
+    {
+      "id": 101,
+      "root": "mod",
+      "rootMeaning": "測る・様式"
+    },
+    {
+      "id": 102,
+      "root": "mon",
+      "rootMeaning": "警告する"
+    },
+    {
+      "id": 103,
+      "root": "mono",
+      "rootMeaning": "一つ"
+    },
+    {
+      "id": 104,
+      "root": "mot",
+      "rootMeaning": "動く"
+    },
+    {
+      "id": 105,
+      "root": "mut",
+      "rootMeaning": "変わる"
+    },
+    {
+      "id": 106,
+      "root": "nat",
+      "rootMeaning": "生まれる"
+    },
+    {
+      "id": 107,
+      "root": "nor",
+      "rootMeaning": "標準"
+    },
+    {
+      "id": 108,
+      "root": "not",
+      "rootMeaning": "印"
+    },
+    {
+      "id": 109,
+      "root": "note",
+      "rootMeaning": "印・知る"
+    },
+    {
+      "id": 110,
+      "root": "nounce",
+      "rootMeaning": "報告する"
+    },
+    {
+      "id": 111,
+      "root": "novel",
+      "rootMeaning": "新しい"
+    },
+    {
+      "id": 112,
+      "root": "occup",
+      "rootMeaning": "占める"
+    },
+    {
+      "id": 113,
+      "root": "organ",
+      "rootMeaning": "器官・組織"
+    },
+    {
+      "id": 114,
+      "root": "out",
+      "rootMeaning": "外・越える（前置詞）"
+    },
+    {
+      "id": 115,
+      "root": "over",
+      "rootMeaning": "越える（前置詞）"
+    },
+    {
+      "id": 116,
+      "root": "par",
+      "rootMeaning": "現れる・準備する・等しい"
+    },
+    {
+      "id": 117,
+      "root": "part",
+      "rootMeaning": "部分・参加"
+    },
+    {
+      "id": 118,
+      "root": "pass",
+      "rootMeaning": "歩み・通過"
+    },
+    {
+      "id": 119,
+      "root": "path",
+      "rootMeaning": "苦しむ・感じる"
+    },
+    {
+      "id": 120,
+      "root": "pelp",
+      "rootMeaning": "押しやる"
+    },
+    {
+      "id": 121,
+      "root": "pend",
+      "rootMeaning": "かける・払う"
+    },
+    {
+      "id": 122,
+      "root": "phys",
+      "rootMeaning": "自然"
+    },
+    {
+      "id": 123,
+      "root": "place",
+      "rootMeaning": "場所"
+    },
+    {
+      "id": 124,
+      "root": "plain",
+      "rootMeaning": "平らな・説明"
+    },
+    {
+      "id": 125,
+      "root": "pleas",
+      "rootMeaning": "喜ばせる"
+    },
+    {
+      "id": 126,
+      "root": "plex",
+      "rootMeaning": "折る・複雑"
+    },
+    {
+      "id": 127,
+      "root": "point",
+      "rootMeaning": "刺す"
+    },
+    {
+      "id": 128,
+      "root": "pol",
+      "rootMeaning": "都市・政治"
+    },
+    {
+      "id": 129,
+      "root": "pop",
+      "rootMeaning": "人々"
+    },
+    {
+      "id": 130,
+      "root": "port",
+      "rootMeaning": "運ぶ"
+    },
+    {
+      "id": 131,
+      "root": "pose",
+      "rootMeaning": "置く・提案する"
+    },
+    {
+      "id": 132,
+      "root": "poss",
+      "rootMeaning": "できる・所有"
+    },
+    {
+      "id": 133,
+      "root": "prais",
+      "rootMeaning": "価値・価格"
+    },
+    {
+      "id": 134,
+      "root": "prehend",
+      "rootMeaning": "つかむ"
+    },
+    {
+      "id": 135,
+      "root": "press",
+      "rootMeaning": "押す"
+    },
+    {
+      "id": 136,
+      "root": "prim",
+      "rootMeaning": "最初の"
+    },
+    {
+      "id": 137,
+      "root": "prop",
+      "rootMeaning": "自分の"
+    },
+    {
+      "id": 138,
+      "root": "prove",
+      "rootMeaning": "試す・証明する"
+    },
+    {
+      "id": 139,
+      "root": "publ",
+      "rootMeaning": "公共の"
+    },
+    {
+      "id": 140,
+      "root": "put",
+      "rootMeaning": "考える"
+    },
+    {
+      "id": 141,
+      "root": "quir",
+      "rootMeaning": "求める"
+    },
+    {
+      "id": 142,
+      "root": "range",
+      "rootMeaning": "並べる"
+    },
+    {
+      "id": 143,
+      "root": "ration",
+      "rootMeaning": "理性"
+    },
+    {
+      "id": 144,
+      "root": "rect",
+      "rootMeaning": "まっすぐ"
+    },
+    {
+      "id": 145,
+      "root": "reg",
+      "rootMeaning": "支配する・導く"
+    },
+    {
+      "id": 146,
+      "root": "rel",
+      "rootMeaning": "結ぶ・戻す"
+    },
+    {
+      "id": 147,
+      "root": "rise",
+      "rootMeaning": "上がる"
+    },
+    {
+      "id": 148,
+      "root": "rupt",
+      "rootMeaning": "破る"
+    },
+    {
+      "id": 149,
+      "root": "sacr",
+      "rootMeaning": "神聖な"
+    },
+    {
+      "id": 150,
+      "root": "scrib",
+      "rootMeaning": "書く"
+    },
+    {
+      "id": 151,
+      "root": "sent",
+      "rootMeaning": "感じる"
+    },
+    {
+      "id": 152,
+      "root": "sert",
+      "rootMeaning": "加える"
+    },
+    {
+      "id": 153,
+      "root": "serv",
+      "rootMeaning": "守る・仕える"
+    },
+    {
+      "id": 154,
+      "root": "sign",
+      "rootMeaning": "しるし"
+    },
+    {
+      "id": 155,
+      "root": "simil",
+      "rootMeaning": "似た"
+    },
+    {
+      "id": 156,
+      "root": "sist",
+      "rootMeaning": "立つ"
+    },
+    {
+      "id": 157,
+      "root": "soci",
+      "rootMeaning": "仲間"
+    },
+    {
+      "id": 158,
+      "root": "sol",
+      "rootMeaning": "一人・太陽"
+    },
+    {
+      "id": 159,
+      "root": "solv",
+      "rootMeaning": "解く"
+    },
+    {
+      "id": 160,
+      "root": "soph",
+      "rootMeaning": "知恵"
+    },
+    {
+      "id": 161,
+      "root": "spec",
+      "rootMeaning": "見る"
+    },
+    {
+      "id": 162,
+      "root": "spect",
+      "rootMeaning": "見る"
+    },
+    {
+      "id": 163,
+      "root": "sphere",
+      "rootMeaning": "球"
+    },
+    {
+      "id": 164,
+      "root": "spir",
+      "rootMeaning": "呼吸する"
+    },
+    {
+      "id": 165,
+      "root": "spring",
+      "rootMeaning": "跳ねる"
+    },
+    {
+      "id": 166,
+      "root": "stand",
+      "rootMeaning": "立つ"
+    },
+    {
+      "id": 167,
+      "root": "stinct",
+      "rootMeaning": "刺す・区別"
+    },
+    {
+      "id": 168,
+      "root": "strain",
+      "rootMeaning": "締める"
+    },
+    {
+      "id": 169,
+      "root": "strat",
+      "rootMeaning": "広げる・戦略"
+    },
+    {
+      "id": 170,
+      "root": "struct",
+      "rootMeaning": "組み立てる"
+    },
+    {
+      "id": 171,
+      "root": "sum",
+      "rootMeaning": "取る・最高"
+    },
+    {
+      "id": 172,
+      "root": "super",
+      "rootMeaning": "上"
+    },
+    {
+      "id": 173,
+      "root": "sure",
+      "rootMeaning": "安全な"
+    },
+    {
+      "id": 174,
+      "root": "tail",
+      "rootMeaning": "切る"
+    },
+    {
+      "id": 175,
+      "root": "tain",
+      "rootMeaning": "保持する"
+    },
+    {
+      "id": 176,
+      "root": "take",
+      "rootMeaning": "取る"
+    },
+    {
+      "id": 177,
+      "root": "tempt",
+      "rootMeaning": "試す・時"
+    },
+    {
+      "id": 178,
+      "root": "tend",
+      "rootMeaning": "伸ばす"
+    },
+    {
+      "id": 179,
+      "root": "test",
+      "rootMeaning": "証言する"
+    },
+    {
+      "id": 180,
+      "root": "text",
+      "rootMeaning": "織る・文脈"
+    },
+    {
+      "id": 181,
+      "root": "therm",
+      "rootMeaning": "熱"
+    },
+    {
+      "id": 182,
+      "root": "tort",
+      "rootMeaning": "ねじる"
+    },
+    {
+      "id": 183,
+      "root": "tract",
+      "rootMeaning": "引く"
+    },
+    {
+      "id": 184,
+      "root": "trad",
+      "rootMeaning": "引き渡す"
+    },
+    {
+      "id": 185,
+      "root": "trib",
+      "rootMeaning": "与える"
+    },
+    {
+      "id": 186,
+      "root": "trop",
+      "rootMeaning": "向く"
+    },
+    {
+      "id": 187,
+      "root": "turb",
+      "rootMeaning": "乱す"
+    },
+    {
+      "id": 188,
+      "root": "typ",
+      "rootMeaning": "型"
+    },
+    {
+      "id": 189,
+      "root": "under",
+      "rootMeaning": "下・内側（前置詞）"
+    },
+    {
+      "id": 190,
+      "root": "urge",
+      "rootMeaning": "押し進める"
+    },
+    {
+      "id": 191,
+      "root": "use",
+      "rootMeaning": "使用"
+    },
+    {
+      "id": 192,
+      "root": "vac",
+      "rootMeaning": "空の"
+    },
+    {
+      "id": 193,
+      "root": "val",
+      "rootMeaning": "強い・価値"
+    },
+    {
+      "id": 194,
+      "root": "var",
+      "rootMeaning": "異なる"
+    },
+    {
+      "id": 195,
+      "root": "ven",
+      "rootMeaning": "来る"
+    },
+    {
+      "id": 196,
+      "root": "verb",
+      "rootMeaning": "言葉"
+    },
+    {
+      "id": 197,
+      "root": "vert",
+      "rootMeaning": "回る・向く"
+    },
+    {
+      "id": 198,
+      "root": "vis",
+      "rootMeaning": "見る"
+    },
+    {
+      "id": 199,
+      "root": "viv",
+      "rootMeaning": "生きる"
+    },
+    {
+      "id": 200,
+      "root": "voc",
+      "rootMeaning": "呼ぶ・声"
+    }
+  ],
+  "wordFamilyMap": {
+    "transaction": 1,
+    "interact": 1,
+    "enact": 1,
+    "react": 1,
+    "active": 1,
+    "alternative": 2,
+    "altruism": 2,
+    "alter": 2,
+    "annual": 3,
+    "anniversary": 3,
+    "adept": 4,
+    "apt": 4,
+    "adapt": 4,
+    "astronomy": 5,
+    "disaster": 5,
+    "asteroid": 5,
+    "biography": 6,
+    "antibiotic": 6,
+    "breakdown": 7,
+    "breakthrough": 7,
+    "capture": 8,
+    "capacity": 8,
+    "capable": 8,
+    "excuse": 9,
+    "accuse": 9,
+    "cause": 9,
+    "proceed": 10,
+    "recession": 10,
+    "precede": 10,
+    "unprecedented": 10,
+    "ancestor": 10,
+    "succeed": 10,
+    "predecessor": 10,
+    "exceed": 10,
+    "concede": 10,
+    "access": 10,
+    "susceptible": 11,
+    "reception": 11,
+    "accept": 11,
+    "deceive": 11,
+    "concept": 11,
+    "conceive": 11,
+    "perceive": 11,
+    "certificate": 12,
+    "certain": 12,
+    "decide": 13,
+    "coincide": 13,
+    "incident": 13,
+    "accidental": 13,
+    "citizen": 14,
+    "civil": 14,
+    "civilization": 14,
+    "claim": 15,
+    "exclaim": 15,
+    "clarify": 16,
+    "declare": 16,
+    "classify": 17,
+    "classical": 17,
+    "decline": 18,
+    "inclined": 18,
+    "include": 19,
+    "disclose": 19,
+    "conclude": 19,
+    "exclusively": 19,
+    "enclose": 19,
+    "communicate": 20,
+    "common": 20,
+    "community": 20,
+    "commodity": 21,
+    "accommodation": 21,
+    "encourage": 22,
+    "courage": 22,
+    "according to": 22,
+    "discourage": 22,
+    "incorporate": 23,
+    "corporation": 23,
+    "count": 24,
+    "account": 24,
+    "discover": 25,
+    "uncover": 25,
+    "coverage": 25,
+    "recover": 25,
+    "bureaucracy": 26,
+    "aristocracy": 26,
+    "credit": 27,
+    "incredible": 27,
+    "discrimination": 28,
+    "crime": 28,
+    "critical": 29,
+    "criterion": 29,
+    "criticize": 29,
+    "agriculture": 30,
+    "cultivate": 30,
+    "culture": 30,
+    "colony": 30,
+    "current": 31,
+    "occur": 31,
+    "curious": 32,
+    "cure": 32,
+    "secure": 32,
+    "accurate": 32,
+    "demographic": 33,
+    "epidemic": 33,
+    "destiny": 34,
+    "destination": 34,
+    "obstinate": 34,
+    "dictate": 35,
+    "addicted": 35,
+    "predict": 35,
+    "contradict": 35,
+    "indicate": 35,
+    "disparity": 36,
+    "proportion": 36,
+    "domain": 37,
+    "dominate": 37,
+    "domestic": 37,
+    "dormitory": 38,
+    "dormant": 38,
+    "conduct": 39,
+    "induce": 39,
+    "reduce": 39,
+    "deduce": 39,
+    "reproduce": 39,
+    "produce": 39,
+    "education": 39,
+    "disease": 40,
+    "ease": 40,
+    "uneasy": 40,
+    "elementary": 41,
+    "element": 41,
+    "emerge": 42,
+    "emergency": 42,
+    "equal": 43,
+    "adequate": 43,
+    "inequality": 43,
+    "experience": 44,
+    "experiment": 44,
+    "efficient": 45,
+    "faculty": 45,
+    "manufacture": 45,
+    "defect": 45,
+    "affect": 45,
+    "infect": 45,
+    "effect": 45,
+    "fail": 46,
+    "fallacy": 46,
+    "false": 46,
+    "fault": 46,
+    "proficient": 47,
+    "affection": 47,
+    "prefecture": 47,
+    "artifact": 47,
+    "offend": 48,
+    "defend": 48,
+    "fertile": 49,
+    "infer": 49,
+    "refer": 49,
+    "interfere": 49,
+    "transfer": 49,
+    "differ": 49,
+    "suffer": 49,
+    "prefer": 49,
+    "offer": 49,
+    "indifferent": 49,
+    "conference": 49,
+    "define": 50,
+    "infinite": 50,
+    "financial": 50,
+    "refine": 50,
+    "confine": 50,
+    "confirm": 51,
+    "firm": 51,
+    "reflect": 52,
+    "flexible": 52,
+    "inflict": 53,
+    "conflict": 53,
+    "fluctuate": 54,
+    "fluid": 54,
+    "fluent": 54,
+    "influence": 54,
+    "affluent": 54,
+    "unfold": 55,
+    "fold": 55,
+    "forehead": 56,
+    "forecast": 56,
+    "formula": 57,
+    "perform": 57,
+    "information": 57,
+    "transform": 57,
+    "uniform": 57,
+    "form": 57,
+    "conform": 57,
+    "reform": 57,
+    "fortune": 58,
+    "comfortable": 58,
+    "reinforce": 58,
+    "effort": 58,
+    "force": 58,
+    "fragile": 59,
+    "fragment": 59,
+    "fraction": 59,
+    "freeze": 60,
+    "refrigerator": 60,
+    "fund": 61,
+    "found": 61,
+    "fundamental": 61,
+    "refuse": 62,
+    "confuse": 62,
+    "generous": 63,
+    "gender": 63,
+    "indigenous": 63,
+    "genuine": 63,
+    "general": 63,
+    "ingenious": 63,
+    "genocide": 63,
+    "generation": 63,
+    "gene": 63,
+    "generate": 63,
+    "congestion": 64,
+    "digest": 64,
+    "suggest": 64,
+    "ingredient": 65,
+    "gradually": 65,
+    "grade": 65,
+    "graduate": 65,
+    "congress": 65,
+    "progress": 65,
+    "aggressive": 65,
+    "autograph": 66,
+    "geography": 66,
+    "grateful": 67,
+    "congratulate": 67,
+    "grace": 67,
+    "gravity": 68,
+    "grave": 68,
+    "grief": 68,
+    "background": 69,
+    "ground": 69,
+    "inhibit": 70,
+    "exhibit": 70,
+    "inhabit": 70,
+    "prohibit": 70,
+    "habit": 70,
+    "headquarters": 71,
+    "head": 71,
+    "inherit": 72,
+    "heir": 72,
+    "heredity": 72,
+    "hospitality": 73,
+    "host": 73,
+    "humble": 74,
+    "humiliate": 74,
+    "humanity": 74,
+    "identify": 75,
+    "identical": 75,
+    "imagine": 76,
+    "imitate": 76,
+    "injection": 77,
+    "conjecture": 77,
+    "subject": 77,
+    "objective": 77,
+    "object": 77,
+    "reject": 77,
+    "subjective": 77,
+    "project": 77,
+    "jury": 78,
+    "prejudice": 78,
+    "justice": 78,
+    "judge": 78,
+    "laboratory": 79,
+    "labor": 79,
+    "collaborate": 79,
+    "elaborate": 79,
+    "neglect": 80,
+    "eligible": 80,
+    "elect": 80,
+    "intelligent": 80,
+    "collect": 80,
+    "intelligible": 80,
+    "legitimate": 81,
+    "legal": 81,
+    "allegedly": 81,
+    "colleague": 81,
+    "delegation": 81,
+    "legislation": 81,
+    "relevant": 82,
+    "alleviate": 82,
+    "relieve": 82,
+    "likewise": 83,
+    "likely": 83,
+    "alike": 83,
+    "eliminate": 84,
+    "preliminary": 84,
+    "limit": 84,
+    "line": 85,
+    "outline": 85,
+    "deadline": 85,
+    "streamline": 85,
+    "dialect": 86,
+    "linguistic": 86,
+    "literally": 87,
+    "literature": 87,
+    "allocate": 88,
+    "locate": 88,
+    "local": 88,
+    "dialogue": 89,
+    "logical": 89,
+    "analogy": 89,
+    "biology": 89,
+    "ecology": 89,
+    "apologize": 89,
+    "ideology": 89,
+    "psychology": 89,
+    "archaeologist": 89,
+    "belong": 90,
+    "long": 90,
+    "longevity": 90,
+    "prolong": 90,
+    "manual": 91,
+    "manipulate": 91,
+    "manuscript": 91,
+    "manage": 91,
+    "command": 92,
+    "demand": 92,
+    "recommend": 92,
+    "mature": 93,
+    "maternal": 93,
+    "intermediate": 94,
+    "medieval": 94,
+    "immediately": 94,
+    "medium": 94,
+    "medicine": 95,
+    "medical": 95,
+    "remedy": 95,
+    "remember": 96,
+    "memorize": 96,
+    "merge": 97,
+    "immerse": 97,
+    "eminent": 98,
+    "prominent": 98,
+    "minister": 98,
+    "diminish": 98,
+    "minute": 98,
+    "mind": 99,
+    "remind": 99,
+    "commit": 100,
+    "permit": 100,
+    "promise": 100,
+    "emit": 100,
+    "dismiss": 100,
+    "submit": 100,
+    "mission": 100,
+    "omit": 100,
+    "transmit": 100,
+    "modest": 101,
+    "moderate": 101,
+    "modify": 101,
+    "modern": 101,
+    "monument": 102,
+    "monitor": 102,
+    "monopoly": 103,
+    "monarch": 103,
+    "promote": 104,
+    "remove": 104,
+    "motive": 104,
+    "emotion": 104,
+    "momentum": 104,
+    "mobile": 104,
+    "substitute": 105,
+    "mutation": 105,
+    "commute": 105,
+    "innate": 106,
+    "native": 106,
+    "natural": 106,
+    "nation": 106,
+    "nationality": 106,
+    "enormous": 107,
+    "norm": 107,
+    "connotation": 108,
+    "notion": 108,
+    "notorious": 109,
+    "notice": 109,
+    "note": 109,
+    "pronounce": 110,
+    "announce": 110,
+    "innovation": 111,
+    "novel": 111,
+    "occupy": 112,
+    "occupation": 112,
+    "organism": 113,
+    "organ": 113,
+    "organize": 113,
+    "outbreak": 114,
+    "outweigh": 114,
+    "outcome": 114,
+    "output": 114,
+    "outstanding": 114,
+    "overcome": 115,
+    "overwork": 115,
+    "overshadow": 115,
+    "overlook": 115,
+    "overwhelming": 115,
+    "overtake": 115,
+    "prepare": 116,
+    "compare": 116,
+    "peer": 116,
+    "appear": 116,
+    "apparently": 116,
+    "partly": 117,
+    "partial": 117,
+    "departure": 117,
+    "department": 117,
+    "particular": 117,
+    "counterpart": 117,
+    "portion": 117,
+    "participate": 117,
+    "particle": 117,
+    "passage": 118,
+    "passenger": 118,
+    "encompass": 118,
+    "empathy": 119,
+    "patient": 119,
+    "sympathy": 119,
+    "passion": 119,
+    "compatible": 119,
+    "compassion": 119,
+    "impulse": 120,
+    "compel": 120,
+    "expel": 120,
+    "independent": 121,
+    "indispensable": 121,
+    "compensate": 121,
+    "pension": 121,
+    "expense": 121,
+    "suspend": 121,
+    "depend": 121,
+    "physician": 122,
+    "physical": 122,
+    "physiological": 122,
+    "replace": 123,
+    "displace": 123,
+    "plain": 124,
+    "explain": 124,
+    "pleasant": 125,
+    "placebo": 125,
+    "comply": 126,
+    "reply": 126,
+    "complicated": 126,
+    "multiply": 126,
+    "supply": 126,
+    "complex": 126,
+    "apply": 126,
+    "imply": 126,
+    "appointment": 127,
+    "disappoint": 127,
+    "metropolitan": 128,
+    "political": 128,
+    "policy": 128,
+    "population": 129,
+    "public": 129,
+    "transportation": 130,
+    "support": 130,
+    "import": 130,
+    "posture": 131,
+    "compose": 131,
+    "oppose": 131,
+    "suppose": 131,
+    "expose": 131,
+    "purpose": 131,
+    "disposal": 131,
+    "propose": 131,
+    "exponential": 131,
+    "component": 131,
+    "impose": 131,
+    "deposit": 131,
+    "compound": 131,
+    "pose": 131,
+    "possess": 132,
+    "potential": 132,
+    "appreciate": 133,
+    "price": 133,
+    "praise": 133,
+    "precious": 133,
+    "comprehend": 134,
+    "apprehension": 134,
+    "press": 135,
+    "impress": 135,
+    "depress": 135,
+    "suppress": 135,
+    "express": 135,
+    "oppress": 135,
+    "prime": 136,
+    "primary": 136,
+    "primitive": 136,
+    "principal": 136,
+    "appropriate": 137,
+    "property": 137,
+    "prove": 138,
+    "approve": 138,
+    "improve": 138,
+    "proof": 138,
+    "publish": 139,
+    "republic": 139,
+    "reputation": 140,
+    "dispute": 140,
+    "questionnaire": 141,
+    "require": 141,
+    "inquiry": 141,
+    "acquire": 141,
+    "range": 142,
+    "arrange": 142,
+    "rational": 143,
+    "reason": 143,
+    "direction": 144,
+    "erect": 144,
+    "direct": 144,
+    "correct": 144,
+    "regulate": 145,
+    "rigid": 145,
+    "region": 145,
+    "regime": 145,
+    "register": 145,
+    "relative": 146,
+    "relationship": 146,
+    "relate": 146,
+    "rise": 147,
+    "arise": 147,
+    "disrupt": 148,
+    "abruptly": 148,
+    "interrupt": 148,
+    "erupt": 148,
+    "corruption": 148,
+    "bankrupt": 148,
+    "sacred": 149,
+    "sacrifice": 149,
+    "describe": 150,
+    "prescribe": 150,
+    "subscribe": 150,
+    "script": 150,
+    "sentence": 151,
+    "sense": 151,
+    "consensus": 151,
+    "sentiment": 151,
+    "sensation": 151,
+    "resent": 151,
+    "sensory": 151,
+    "consent": 151,
+    "insert": 152,
+    "assert": 152,
+    "conservative": 153,
+    "conservation": 153,
+    "deserve": 153,
+    "serve": 153,
+    "service": 153,
+    "reservation": 153,
+    "observe": 153,
+    "preserve": 153,
+    "sign": 154,
+    "significant": 154,
+    "resign": 154,
+    "assign": 154,
+    "designate": 154,
+    "simultaneous": 155,
+    "assimilate": 155,
+    "similar": 155,
+    "statistics": 156,
+    "exist": 156,
+    "persist": 156,
+    "state": 156,
+    "resist": 156,
+    "establish": 156,
+    "statue": 156,
+    "insist": 156,
+    "status": 156,
+    "substance": 156,
+    "constitute": 156,
+    "static": 156,
+    "estate": 156,
+    "stable": 156,
+    "obstacle": 156,
+    "standard": 156,
+    "consist": 156,
+    "society": 157,
+    "associate": 157,
+    "solar": 158,
+    "isolation": 158,
+    "sole": 158,
+    "absolute": 159,
+    "dissolve": 159,
+    "solve": 159,
+    "resolve": 159,
+    "sophisticated": 160,
+    "philosophy": 160,
+    "respect": 161,
+    "spectator": 161,
+    "prospect": 161,
+    "spectacle": 161,
+    "despise": 161,
+    "expect": 161,
+    "aspect": 161,
+    "perspective": 161,
+    "suspect": 161,
+    "inspect": 161,
+    "speculate": 162,
+    "specimen": 162,
+    "respective": 162,
+    "species": 162,
+    "spectrum": 162,
+    "specialize": 162,
+    "atmosphere": 163,
+    "sphere": 163,
+    "hemisphere": 163,
+    "inspire": 164,
+    "conspiracy": 164,
+    "respiratory": 164,
+    "expire": 164,
+    "aspiration": 164,
+    "offspring": 165,
+    "spring": 165,
+    "withstand": 166,
+    "misunderstand": 166,
+    "instinct": 167,
+    "extinct": 167,
+    "distinguish": 167,
+    "constraint": 168,
+    "restrain": 168,
+    "restrict": 168,
+    "strain": 168,
+    "demonstrate": 169,
+    "strategy": 169,
+    "infrastructure": 170,
+    "instruction": 170,
+    "construction": 170,
+    "instrument": 170,
+    "structure": 170,
+    "resume": 171,
+    "presume": 171,
+    "consume": 171,
+    "assume": 171,
+    "sum": 171,
+    "superior": 172,
+    "surpass": 172,
+    "surplus": 172,
+    "superstition": 172,
+    "surface": 172,
+    "ensure": 173,
+    "insurance": 173,
+    "reassure": 173,
+    "assure": 173,
+    "detail": 174,
+    "entail": 174,
+    "retail": 174,
+    "content": 175,
+    "obtain": 175,
+    "retain": 175,
+    "contain": 175,
+    "sustain": 175,
+    "entertain": 175,
+    "maintain": 175,
+    "attain": 175,
+    "mistake": 176,
+    "intake": 176,
+    "contemporary": 177,
+    "tempt": 177,
+    "attempt": 177,
+    "temper": 177,
+    "temporary": 177,
+    "tense": 178,
+    "extend": 178,
+    "contend": 178,
+    "intend": 178,
+    "tender": 178,
+    "intense": 178,
+    "tend": 178,
+    "extent": 178,
+    "attend": 178,
+    "pretend": 178,
+    "protest": 179,
+    "testimony": 179,
+    "context": 180,
+    "textile": 180,
+    "texture": 180,
+    "temperature": 181,
+    "thermal": 181,
+    "torture": 182,
+    "distort": 182,
+    "contract": 183,
+    "distract": 183,
+    "attract": 183,
+    "extract": 183,
+    "abstract": 183,
+    "tradition": 184,
+    "betray": 184,
+    "distribute": 185,
+    "attribute": 185,
+    "contribute": 185,
+    "extrovert": 186,
+    "tropical": 186,
+    "turmoil": 187,
+    "trouble": 187,
+    "disturb": 187,
+    "prototype": 188,
+    "typical": 188,
+    "undertake": 189,
+    "underlying": 189,
+    "undermine": 189,
+    "undergo": 189,
+    "surge": 190,
+    "urge": 190,
+    "urgent": 190,
+    "unusual": 191,
+    "used": 191,
+    "usage": 191,
+    "abuse": 191,
+    "vacuum": 192,
+    "evacuate": 192,
+    "vacant": 192,
+    "equivalent": 193,
+    "value": 193,
+    "valid": 193,
+    "evaluate": 193,
+    "available": 193,
+    "prevail": 193,
+    "various": 194,
+    "vary": 194,
+    "convenient": 195,
+    "prevent": 195,
+    "venue": 195,
+    "convention": 195,
+    "intervene": 195,
+    "conventional": 195,
+    "advent": 195,
+    "verbal": 196,
+    "proverb": 196,
+    "diversity": 197,
+    "converse": 197,
+    "controversial": 197,
+    "convert": 197,
+    "version": 197,
+    "reverse": 197,
+    "adverse": 197,
+    "divert": 197,
+    "supervisor": 198,
+    "survey": 198,
+    "advise": 198,
+    "revise": 198,
+    "evidence": 198,
+    "view": 198,
+    "vision": 198,
+    "revive": 199,
+    "survive": 199,
+    "vivid": 199,
+    "advocate": 200,
+    "vocal": 200,
+    "provoke": 200,
+    "evoke": 200,
+    "vocabulary": 200
+  }
+}

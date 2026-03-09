@@ -5,8 +5,10 @@ import Challenge from './pages/Challenge'
 import Warmup from './pages/Warmup'
 import Stats from './pages/Stats'
 import Settings from './pages/Settings'
+import DailyQuiz from './pages/DailyQuiz'
 import { db } from './db/database'
 import { importCSVFromUrl } from './utils/importFromCSV'
+import { loadWordFamilies } from './utils/loadWordFamilies'
 
 function App() {
   const [ready, setReady] = useState(false)
@@ -19,6 +21,8 @@ function App() {
         if (count === 0) {
           await importCSVFromUrl('/data/leap_words.csv', false)
         }
+        // 語族データのロード（未ロードの場合のみ）
+        await loadWordFamilies()
       } catch (err) {
         setError(err.message)
       } finally {
@@ -61,6 +65,7 @@ function App() {
         <Route path="/warmup" element={<Warmup />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/daily" element={<DailyQuiz />} />
       </Routes>
     </BrowserRouter>
   )
