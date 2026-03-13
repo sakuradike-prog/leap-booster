@@ -10,7 +10,10 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center px-4 py-10">
       {/* タイトル */}
-      <h1 className="text-3xl font-black text-blue-400 tracking-tight mb-1">LEAP Booster</h1>
+      <h1
+        className="text-5xl font-extrabold tracking-tight mb-1"
+        style={{ fontFamily: "'Space Grotesk', sans-serif", background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+      >Vocaleap</h1>
       <p className="text-slate-500 text-sm mb-10">英単語自学習アプリ</p>
 
       {/* ストリーク・ポイント */}

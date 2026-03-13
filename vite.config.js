@@ -10,8 +10,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'LEAP Booster',
-        short_name: 'LEAP+',
+        name: 'Vocaleap',
+        short_name: 'Vocaleap',
         start_url: '/',
         display: 'standalone',
         background_color: '#0f172a',
