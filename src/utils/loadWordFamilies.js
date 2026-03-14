@@ -25,8 +25,17 @@ export async function loadWordFamilies() {
   // 単語名でまとめて検索
   const wordRecords = await db.words.where('word').anyOf(wordKeys).toArray()
 
+  // 同じ単語が複数レコードある場合は最初の1件だけ対象にする（重複防止）
+  const seen = new Set()
+  const uniqueRecords = wordRecords.filter(r => {
+    const key = r.word.toLowerCase()
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+
   await db.transaction('rw', db.words, async () => {
-    for (const record of wordRecords) {
+    for (const record of uniqueRecords) {
       const familyId = wordMap[record.word.toLowerCase()]
       if (familyId != null) {
         await db.words.update(record.id, { familyId })

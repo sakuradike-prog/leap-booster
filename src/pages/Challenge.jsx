@@ -284,9 +284,18 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
       db.wordFamilies.get(word.familyId)
         .then(fam => { if (fam) setFamilyData(fam) })
         .catch(() => {})
-      // 同語族の単語を取得（自分以外・最大8件）
+      // 同語族の単語を取得（自分以外・重複除去・最大8件）
       db.words.where('familyId').equals(word.familyId).toArray()
-        .then(ws => setFamilyWords(ws.filter(w => w.id !== word.id).slice(0, 8)))
+        .then(ws => {
+          const seen = new Set()
+          const unique = ws.filter(w => {
+            if (w.id === word.id) return false
+            if (seen.has(w.word)) return false
+            seen.add(w.word)
+            return true
+          })
+          setFamilyWords(unique.slice(0, 8))
+        })
         .catch(() => {})
     }
     if (allRoots.length > 0) {
