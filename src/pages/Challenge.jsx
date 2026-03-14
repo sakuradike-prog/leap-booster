@@ -240,9 +240,9 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
   const [introOpacity, setIntroOpacity] = useState(1)
   const [idx, setIdx] = useState(0)
   const [familyData, setFamilyData] = useState(null)
+  const [familyWords, setFamilyWords] = useState([])  // 同語族の単語リスト
   const [allRoots, setAllRoots] = useState([])
   const [rootsHint, setRootsHint] = useState([])
-  const timerRef = useRef(null)
 
   // 語源データをDB から一括取得（マウント時1回）
   useEffect(() => {
@@ -274,14 +274,19 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [phase])
 
-  // ---- スライドショー: 語族取得 + 語源マッチング ----
+  // ---- スライドショー: 語族取得 + 語源マッチング + 同語族単語取得 ----
   useEffect(() => {
     if (phase !== 'slideshow') return
     setFamilyData(null)
+    setFamilyWords([])
     setRootsHint([])
     if (word?.familyId) {
       db.wordFamilies.get(word.familyId)
         .then(fam => { if (fam) setFamilyData(fam) })
+        .catch(() => {})
+      // 同語族の単語を取得（自分以外・最大8件）
+      db.words.where('familyId').equals(word.familyId).toArray()
+        .then(ws => setFamilyWords(ws.filter(w => w.id !== word.id).slice(0, 8)))
         .catch(() => {})
     }
     if (allRoots.length > 0) {
@@ -289,27 +294,17 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
     }
   }, [idx, phase, allRoots]) // eslint-disable-line
 
-  // ---- スライドショー: 読み上げ + 自動進行 ----
+  // ---- スライドショー: 単語表示時に自動読み上げ（自動進行なし） ----
   useEffect(() => {
     if (phase !== 'slideshow') return
     speak(word.word, 'en-US', 0.85)
-    const currentIdx = idx
-    timerRef.current = setTimeout(() => {
-      if (currentIdx + 1 >= words.length) {
-        setPhase('choice')
-      } else {
-        setIdx(currentIdx + 1)
-      }
-    }, CM_DURATION)
     return () => {
-      clearTimeout(timerRef.current)
       try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
     }
   }, [idx, phase]) // eslint-disable-line
 
   function handleAdvance() {
     if (phase !== 'slideshow') return
-    clearTimeout(timerRef.current)
     try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
     if (idx + 1 >= words.length) {
       setPhase('choice')
@@ -406,44 +401,32 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
 
   // ---- スライドショー画面 ----
   return (
-    <div
-      className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center px-6 py-8 select-none cursor-pointer"
-      onClick={handleAdvance}
-    >
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col px-5 py-6 select-none overflow-y-auto">
       <style>{CM_STYLE}</style>
 
       {/* ヘッダー */}
-      <div className="mb-10 text-center">
-        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">
-          📺 CM Break
-        </p>
-        <p className="text-slate-700 text-xs mt-1">{idx + 1} / {words.length}</p>
+      <div className="flex items-center justify-between mb-6">
+        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">📺 CM Break</p>
+        <p className="text-slate-600 text-xs tabular-nums">{idx + 1} / {words.length}</p>
       </div>
 
       {/* 単語情報 */}
-      <div className="text-center mb-6 w-full max-w-sm">
-        <p className="text-slate-500 text-sm mb-3">
-          No.{word.leapNumber} ({word.leapPart})
+      <div className="text-center mb-5">
+        <p className="text-slate-500 text-base font-bold mb-2">
+          No.{word.leapNumber} &nbsp;<span className="text-slate-600">{word.leapPart}</span>
         </p>
-        <p className="text-6xl font-black mb-5 leading-tight tracking-tight">
+        <p className="text-6xl font-black mb-4 leading-tight tracking-tight">
           {word.word}
         </p>
-        <p className="text-2xl text-slate-200 font-medium mb-2">{word.meaning}</p>
+        <p className="text-2xl text-slate-200 font-medium mb-1">{word.meaning}</p>
         {word.partOfSpeech && (
-          <p className="text-slate-500 text-sm">{word.partOfSpeech}</p>
+          <p className="text-slate-600 text-sm">{word.partOfSpeech}</p>
         )}
       </div>
 
-      {/* 語族ヒント */}
-      {familyData && (
-        <div className="px-5 py-3 bg-blue-900/30 border border-blue-800/50 rounded-xl text-blue-300 text-sm mb-3 max-w-sm w-full text-center">
-          🧬 語族: <span className="font-bold">[{familyData.root}]</span> — {familyData.rootMeaning}
-        </div>
-      )}
-
       {/* 語源ヒント */}
       {rootsHint.length > 0 && (
-        <div className="px-5 py-3 bg-purple-900/30 border border-purple-800/50 rounded-xl text-purple-300 text-sm mb-3 max-w-sm w-full text-center">
+        <div className="px-4 py-3 bg-purple-900/30 border border-purple-800/50 rounded-xl text-purple-300 text-sm mb-3 w-full text-center">
           🔤 語源:{' '}
           {rootsHint.map((r, i) => (
             <span key={r.root}>
@@ -455,32 +438,55 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
         </div>
       )}
 
-      {/* スペーサー（語族/語源がない場合はここで mb-8 分補完） */}
-      {!familyData && rootsHint.length === 0 && <div className="mb-8" />}
-      {(familyData || rootsHint.length > 0) && <div className="mb-5" />}
+      {/* 語族ヒント + 同語族の単語 */}
+      {familyData && (
+        <div className="px-4 py-3 bg-blue-900/30 border border-blue-800/50 rounded-xl text-blue-300 text-sm mb-3 w-full">
+          <p className="text-center mb-2">
+            🧬 語族: <span className="font-bold">[{familyData.root}]</span>
+            {familyData.rootMeaning && <span className="text-blue-400"> — {familyData.rootMeaning}</span>}
+          </p>
+          {familyWords.length > 0 && (
+            <div className="flex flex-wrap gap-2 justify-center pt-1 border-t border-blue-800/40">
+              {familyWords.map(fw => (
+                <span key={fw.id} className="text-xs bg-blue-900/50 rounded-lg px-2 py-1">
+                  <span className="font-bold text-blue-200">{fw.word}</span>
+                  <span className="text-blue-500 ml-1">{fw.partOfSpeech}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* プログレスバー */}
-      <div className="w-full max-w-sm h-1 bg-slate-800 rounded-full overflow-hidden mb-5">
-        <div
-          key={`cm-bar-${idx}`}
-          className="h-full bg-blue-500 rounded-full"
-          style={{
-            animationName: 'cm-progress',
-            animationDuration: `${CM_DURATION}ms`,
-            animationTimingFunction: 'linear',
-            animationFillMode: 'forwards',
+      {/* ボタン群 */}
+      <div className="mt-auto pt-5 flex flex-col gap-3">
+        {/* もう一度発音 */}
+        <button
+          onClick={() => speak(word.word, 'en-US', 0.75)}
+          className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-300 text-sm font-bold transition-colors active:scale-95"
+        >
+          🔊 もう一度発音
+        </button>
+
+        {/* 次の単語へ */}
+        <button
+          onClick={handleAdvance}
+          className="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-xl text-white text-base font-bold transition-colors active:scale-95"
+        >
+          次の単語へ →
+        </button>
+
+        {/* スキップ（終了メニューへ） */}
+        <button
+          onClick={() => {
+            try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
+            setPhase('choice')
           }}
-        />
+          className="w-full py-3 bg-transparent border border-slate-800 rounded-xl text-slate-600 hover:text-slate-400 hover:border-slate-600 text-sm transition-colors"
+        >
+          スキップして終了メニューへ
+        </button>
       </div>
-
-      <p className="text-slate-600 text-xs mb-8">タップで次へ</p>
-
-      <button
-        onClick={e => { e.stopPropagation(); setPhase('choice') }}
-        className="px-8 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-400 text-sm transition-colors"
-      >
-        スキップ →
-      </button>
     </div>
   )
 }
@@ -699,9 +705,8 @@ function TimeoutScreen({ word, streak, reason, onRetry, onHome }) {
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center px-4 text-center">
       <div className="text-5xl mb-4">{isHonest ? '🙏' : '⏰'}</div>
-      <p className="text-slate-500 text-sm mb-1">{word.leapPart} No.{word.leapNumber}</p>
-      <p className="text-6xl font-black mb-2">{word.word}</p>
-      <p className="text-slate-400 text-lg mb-1">{word.meaning}</p>
+      <p className="text-slate-400 text-xl font-bold mb-1">{word.leapPart} &nbsp;No.{word.leapNumber}</p>
+      <p className="text-6xl font-black mb-6">{word.word}</p>
       <p className="text-slate-600 text-sm mb-8">
         {isHonest
           ? `ブロック正解 ${streak} 問で終了`
