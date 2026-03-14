@@ -9,6 +9,8 @@ import DailyQuiz from './pages/DailyQuiz'
 import { db } from './db/database'
 import { importCSVFromUrl } from './utils/importFromCSV'
 import { loadWordFamilies } from './utils/loadWordFamilies'
+import { loadRoots } from './utils/loadRoots'
+import { loadExamples } from './utils/loadExamples'
 
 function App() {
   const [ready, setReady] = useState(false)
@@ -23,6 +25,10 @@ function App() {
         }
         // 語族データのロード（未ロードの場合のみ）
         await loadWordFamilies()
+        // 語源データのロード（未ロードの場合のみ）
+        await loadRoots()
+        // 例文データのロード（warmupSentences を差し替え）
+        await loadExamples()
       } catch (err) {
         setError(err.message)
       } finally {

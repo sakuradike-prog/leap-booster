@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import { useUserStats } from '../hooks/useUserStats'
+import { findRoots } from '../utils/findRoots'
 
 const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const GOAL = 30
@@ -239,7 +240,14 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
   const [introOpacity, setIntroOpacity] = useState(1)
   const [idx, setIdx] = useState(0)
   const [familyData, setFamilyData] = useState(null)
+  const [allRoots, setAllRoots] = useState([])
+  const [rootsHint, setRootsHint] = useState([])
   const timerRef = useRef(null)
+
+  // 語源データをDB から一括取得（マウント時1回）
+  useEffect(() => {
+    db.roots.toArray().then(r => setAllRoots(r)).catch(() => {})
+  }, []) // eslint-disable-line
 
   const word = words[Math.min(idx, words.length - 1)]
   const nextQuestionNum = blockNumber * 10 + 1 // 11 or 21
@@ -266,15 +274,20 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [phase])
 
-  // ---- スライドショー: 語族取得 ----
+  // ---- スライドショー: 語族取得 + 語源マッチング ----
   useEffect(() => {
     if (phase !== 'slideshow') return
     setFamilyData(null)
-    if (!word?.familyId) return
-    db.wordFamilies.get(word.familyId)
-      .then(fam => { if (fam) setFamilyData(fam) })
-      .catch(() => {})
-  }, [idx, phase]) // eslint-disable-line
+    setRootsHint([])
+    if (word?.familyId) {
+      db.wordFamilies.get(word.familyId)
+        .then(fam => { if (fam) setFamilyData(fam) })
+        .catch(() => {})
+    }
+    if (allRoots.length > 0) {
+      setRootsHint(findRoots(word.word, allRoots))
+    }
+  }, [idx, phase, allRoots]) // eslint-disable-line
 
   // ---- スライドショー: 読み上げ + 自動進行 ----
   useEffect(() => {
@@ -423,10 +436,28 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
 
       {/* 語族ヒント */}
       {familyData && (
-        <div className="px-5 py-3 bg-blue-900/30 border border-blue-800/50 rounded-xl text-blue-300 text-sm mb-8 max-w-sm w-full text-center">
+        <div className="px-5 py-3 bg-blue-900/30 border border-blue-800/50 rounded-xl text-blue-300 text-sm mb-3 max-w-sm w-full text-center">
           🧬 語族: <span className="font-bold">[{familyData.root}]</span> — {familyData.rootMeaning}
         </div>
       )}
+
+      {/* 語源ヒント */}
+      {rootsHint.length > 0 && (
+        <div className="px-5 py-3 bg-purple-900/30 border border-purple-800/50 rounded-xl text-purple-300 text-sm mb-3 max-w-sm w-full text-center">
+          🔤 語源:{' '}
+          {rootsHint.map((r, i) => (
+            <span key={r.root}>
+              {i > 0 && <span className="text-purple-600 mx-1">+</span>}
+              <span className="font-bold">{r.root}</span>
+              <span className="text-purple-400"> ({r.meaning})</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* スペーサー（語族/語源がない場合はここで mb-8 分補完） */}
+      {!familyData && rootsHint.length === 0 && <div className="mb-8" />}
+      {(familyData || rootsHint.length > 0) && <div className="mb-5" />}
 
       {/* プログレスバー */}
       <div className="w-full max-w-sm h-1 bg-slate-800 rounded-full overflow-hidden mb-5">
