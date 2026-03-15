@@ -6,6 +6,7 @@ import Warmup from './pages/Warmup'
 import Stats from './pages/Stats'
 import Settings from './pages/Settings'
 import DailyQuiz from './pages/DailyQuiz'
+import StudyHistory from './pages/StudyHistory'
 import { db } from './db/database'
 import { importCSVFromUrl } from './utils/importFromCSV'
 import { loadWordFamilies } from './utils/loadWordFamilies'
@@ -72,6 +73,7 @@ function App() {
         <Route path="/stats" element={<Stats />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/daily" element={<DailyQuiz />} />
+        <Route path="/study-history" element={<StudyHistory />} />
       </Routes>
     </BrowserRouter>
   )

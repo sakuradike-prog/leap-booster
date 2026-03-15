@@ -5,6 +5,7 @@ import { useUserStats } from '../hooks/useUserStats'
 import StreakBadge from '../components/StreakBadge'
 import PointDisplay from '../components/PointDisplay'
 import WordCard from '../components/WordCard'
+import WordDetailScreen from '../components/WordDetailScreen'
 
 // ---- バッジ定義 ----
 const POINT_BADGES = [
@@ -80,11 +81,12 @@ export default function Stats() {
   const { stats, loading: statsLoading } = useUserStats()
 
   const [challengeHistory, setChallengeHistory] = useState([])
-  const [weekActivity, setWeekActivity]         = useState([]) // 直近7日の情報
+  const [weekActivity, setWeekActivity]         = useState([])
   const [weakWords, setWeakWords]               = useState([])
   const [studyRanking, setStudyRanking]         = useState([])
   const [badgeWords, setBadgeWords]             = useState([])
   const [loading, setLoading]                   = useState(true)
+  const [selectedWord, setSelectedWord]         = useState(null)
 
   useEffect(() => {
     async function load() {
@@ -182,6 +184,10 @@ export default function Stats() {
   }, [])
 
   const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
+
+  if (selectedWord) {
+    return <WordDetailScreen word={selectedWord} onBack={() => setSelectedWord(null)} />
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-white px-4 py-8">
@@ -289,7 +295,11 @@ export default function Stats() {
               ) : (
                 <div className="flex flex-col gap-2">
                   {studyRanking.map(({ card, word }, i) => (
-                    <div key={word.id} className="flex items-center gap-3 bg-slate-800 rounded-xl px-4 py-3">
+                    <button
+                      key={word.id}
+                      onClick={() => setSelectedWord(word)}
+                      className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-4 py-3 text-left active:scale-95 transition-all"
+                    >
                       <span className="text-slate-600 text-sm w-5 text-right">{i + 1}</span>
                       <div className="flex-1">
                         <WordCard word={word} textClassName="font-bold text-white" />
@@ -298,7 +308,7 @@ export default function Stats() {
                       <span className="text-amber-400 text-sm font-bold tabular-nums">
                         {(card.studyCount ?? 0).toLocaleString()}回
                       </span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -312,7 +322,11 @@ export default function Stats() {
               ) : (
                 <div className="flex flex-col gap-2">
                   {badgeWords.map(({ card, word }) => (
-                    <div key={word.id} className="flex items-center gap-3 bg-slate-800 rounded-xl px-4 py-3">
+                    <button
+                      key={word.id}
+                      onClick={() => setSelectedWord(word)}
+                      className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-4 py-3 text-left active:scale-95 transition-all"
+                    >
                       <img src="/badge.png" alt="badge" style={{ width: 24, height: 24, flexShrink: 0 }} />
                       <div className="flex-1">
                         <WordCard word={word} textClassName="font-bold text-white" />
@@ -321,7 +335,7 @@ export default function Stats() {
                       <span className="text-amber-400 text-sm font-bold tabular-nums">
                         {(card.studyCount ?? 0).toLocaleString()}回
                       </span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}

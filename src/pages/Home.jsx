@@ -48,11 +48,13 @@ export default function Home() {
         )}
       </div>
 
-      {/* 総出会い数 */}
+      {/* 総出会い数（タップで学習履歴へ） */}
       <div className="text-center mb-10">
-        <div className="text-3xl font-black text-purple-400 tabular-nums">
-          {totalStudyCount.toLocaleString()}
-        </div>
+        <button onClick={() => navigate('/study-history')} className="tabular-nums">
+          <div className="text-3xl font-black text-purple-400">
+            {totalStudyCount.toLocaleString()}
+          </div>
+        </button>
         <div className="text-slate-500 text-xs mt-1">総出会い数</div>
       </div>
 

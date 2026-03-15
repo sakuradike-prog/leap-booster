@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import { useUserStats } from '../hooks/useUserStats'
-import { findRoots } from '../utils/findRoots'
-import WordCard from '../components/WordCard'
+import WordDetailScreen from '../components/WordDetailScreen'
 
 const PARTS = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4', 'α']
 const SESSION_COUNT = 5
@@ -142,139 +141,6 @@ function SelectScreen({ onStart }) {
 }
 
 // ─────────────────────────────────────────────
-// WordDetailScreen（CM Breakの単語表示と同レイアウト）
-// ─────────────────────────────────────────────
-function WordDetailScreen({ question, onBack }) {
-  const [allRoots, setAllRoots] = useState([])
-  const [rootsHint, setRootsHint] = useState([])
-  const [familyData, setFamilyData] = useState(null)
-  const [familyWords, setFamilyWords] = useState([])
-
-  useEffect(() => {
-    db.roots.toArray().then(r => setAllRoots(r)).catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    if (allRoots.length > 0 && question?.word) {
-      setRootsHint(findRoots(question.word, allRoots))
-    }
-  }, [allRoots, question?.word])
-
-  useEffect(() => {
-    setFamilyData(null)
-    setFamilyWords([])
-    if (!question?.wordObj?.familyId) return
-    db.wordFamilies.get(question.wordObj.familyId)
-      .then(fam => { if (fam) setFamilyData(fam) })
-      .catch(() => {})
-    db.words.where('familyId').equals(question.wordObj.familyId).toArray()
-      .then(ws => {
-        const seen = new Set()
-        const unique = ws.filter(w => {
-          if (w.id === question.wordId) return false
-          if (seen.has(w.word)) return false
-          seen.add(w.word)
-          return true
-        })
-        setFamilyWords(unique.slice(0, 8))
-      })
-      .catch(() => {})
-  }, [question?.wordId, question?.wordObj?.familyId])
-
-  // マウント時に単語を読み上げ
-  useEffect(() => {
-    if (question?.word) speak(question.word, 'en-US', 0.85)
-  }, [question?.word])
-
-  return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col px-5 py-6 overflow-y-auto">
-      <button
-        onClick={onBack}
-        className="text-slate-400 hover:text-white text-base mb-6 text-left"
-      >
-        ← 戻る
-      </button>
-
-      {/* 単語（WordCard フリップ） */}
-      <div className="text-center mb-5">
-        <p className="text-slate-500 text-base font-bold mb-3">
-          No.{question.leapNumber}&nbsp;<span className="text-slate-600">{question.leapPart}</span>
-        </p>
-        <div className="flex justify-center mb-3">
-          {question.wordId ? (
-            <WordCard
-              word={{ id: question.wordId, word: question.word }}
-              textClassName="text-5xl font-black tracking-tight"
-            />
-          ) : (
-            <span className="text-5xl font-black tracking-tight">{question.word}</span>
-          )}
-        </div>
-        {question.wordObj?.meaning && (
-          <p className="text-2xl text-slate-200 font-medium mt-1">{question.wordObj.meaning}</p>
-        )}
-        {question.wordObj?.partOfSpeech && (
-          <p className="text-slate-600 text-sm mt-1">{question.wordObj.partOfSpeech}</p>
-        )}
-      </div>
-
-      {/* 発音ボタン */}
-      <button
-        onClick={() => speak(question.word, 'en-US', 0.75)}
-        className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-300 text-sm font-bold mb-4 transition-colors active:scale-95"
-      >
-        🔊 読み上げ
-      </button>
-
-      {/* 語源ヒント */}
-      {rootsHint.length > 0 && (
-        <div className="px-4 py-3 bg-purple-900/30 border border-purple-800/50 rounded-xl text-purple-300 text-sm mb-3 text-center">
-          🔤 語源:{' '}
-          {rootsHint.map((r, i) => (
-            <span key={r.root}>
-              {i > 0 && <span className="text-purple-600 mx-1">+</span>}
-              <span className="font-bold">{r.root}</span>
-              <span className="text-purple-400"> ({r.meaning})</span>
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* 語族 */}
-      {familyData && (
-        <div className="px-4 py-3 bg-blue-900/30 border border-blue-800/50 rounded-xl text-blue-300 text-sm mb-4">
-          <p className="text-center mb-2">
-            🧬 語族: <span className="font-bold">[{familyData.root}]</span>
-            {familyData.rootMeaning && (
-              <span className="text-blue-400"> — {familyData.rootMeaning}</span>
-            )}
-          </p>
-          {familyWords.length > 0 && (
-            <div className="flex flex-wrap gap-2 justify-center pt-1 border-t border-blue-800/40">
-              {familyWords.map(fw => (
-                <span key={fw.id} className="text-xs bg-blue-900/50 rounded-lg px-2 py-1">
-                  <span className="font-bold text-blue-200">{fw.word}</span>
-                  <span className="text-blue-500 ml-1">{fw.partOfSpeech}</span>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="mt-auto pt-4">
-        <button
-          onClick={onBack}
-          className="w-full py-4 bg-amber-600 hover:bg-amber-500 rounded-xl text-white text-base font-bold transition-colors active:scale-95"
-        >
-          ← 問題に戻る
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────
 // QuizScreen（問題画面 + 答え表示画面 + 単語詳細）
 // ─────────────────────────────────────────────
 function QuizScreen({ questions, onComplete }) {
@@ -319,10 +185,10 @@ function QuizScreen({ questions, onComplete }) {
   }
 
   // 単語詳細画面
-  if (showDetail) {
+  if (showDetail && question?.wordObj) {
     return (
       <WordDetailScreen
-        question={question}
+        word={question.wordObj}
         onBack={() => setShowDetail(false)}
       />
     )
@@ -352,7 +218,6 @@ function QuizScreen({ questions, onComplete }) {
             </span>
           )}
         </span>
-        <span className="text-slate-600 text-xs">詳細 →</span>
       </button>
 
       {/* 問題文（タップで英文読み上げ） */}
@@ -365,7 +230,6 @@ function QuizScreen({ questions, onComplete }) {
             <p className="text-2xl font-bold leading-relaxed text-slate-100">
               {question.questionJa}
             </p>
-            <p className="text-slate-700 text-xs mt-3">🔊 タップで読み上げ</p>
           </button>
 
           {!showAnswer ? (
@@ -386,7 +250,6 @@ function QuizScreen({ questions, onComplete }) {
                 <p className="text-xl font-bold text-blue-200 leading-relaxed">
                   {question.answerEn}
                 </p>
-                <p className="text-blue-800 text-xs mt-2">🔊 タップで再読み上げ</p>
               </button>
 
               <div className="flex gap-3">
