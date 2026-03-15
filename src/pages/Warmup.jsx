@@ -6,8 +6,7 @@ import { findRoots } from '../utils/findRoots'
 import WordCard from '../components/WordCard'
 
 const PARTS = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4', 'α']
-const SESSION_OPTIONS = [5, 10, 15, 20]
-const DEFAULT_SESSION = 10
+const SESSION_COUNT = 5
 
 // ── speech helper ──────────────────────────
 function speak(text, lang = 'en-US', rate = 0.85) {
@@ -73,7 +72,6 @@ async function incrementStudyCount(wordId) {
 // ─────────────────────────────────────────────
 function SelectScreen({ onStart }) {
   const [selectedPart, setSelectedPart] = useState('すべて')
-  const [sessionCount, setSessionCount] = useState(DEFAULT_SESSION)
   const [totalCount, setTotalCount] = useState(0)
   const navigate = useNavigate()
 
@@ -88,7 +86,7 @@ function SelectScreen({ onStart }) {
   }, [selectedPart])
 
   async function handleStart() {
-    const questions = await fetchQuestions(selectedPart, sessionCount)
+    const questions = await fetchQuestions(selectedPart, SESSION_COUNT)
     if (questions.length === 0) return
     onStart(questions)
   }
@@ -129,23 +127,6 @@ function SelectScreen({ onStart }) {
           {totalCount > 0 && (
             <p className="text-slate-600 text-xs mt-2">{totalCount.toLocaleString()}問から出題</p>
           )}
-        </div>
-
-        <div className="mb-8">
-          <p className="text-slate-400 text-sm font-bold mb-3">1セッションの問題数</p>
-          <div className="flex gap-2">
-            {SESSION_OPTIONS.map(n => (
-              <button
-                key={n}
-                onClick={() => setSessionCount(n)}
-                className={`flex-1 py-3 rounded-xl text-base font-bold transition-all ${
-                  sessionCount === n
-                    ? 'bg-amber-500 text-white'
-                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                }`}
-              >{n}問</button>
-            ))}
-          </div>
         </div>
 
         <button
