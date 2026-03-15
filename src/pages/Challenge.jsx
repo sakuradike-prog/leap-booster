@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import { useUserStats } from '../hooks/useUserStats'
 import { findRoots } from '../utils/findRoots'
+import { speak } from '../utils/speak'
 import WordCard from '../components/WordCard'
 
 const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
@@ -42,16 +43,6 @@ function formatElapsed(ms) {
   return min > 0 ? `${min}分${sec}秒` : `${sec}秒`
 }
 
-function speak(text, lang = 'en-US', rate = 0.85) {
-  try {
-    if (!window.speechSynthesis) return
-    window.speechSynthesis.cancel()
-    const utter = new SpeechSynthesisUtterance(text)
-    utter.lang = lang
-    utter.rate = rate
-    window.speechSynthesis.speak(utter)
-  } catch { /* ignore */ }
-}
 
 function shuffle(arr) {
   const a = [...arr]
@@ -556,6 +547,15 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
     return () => clearInterval(timerId)
   }, [current, cmData]) // eslint-disable-line
 
+  // 問題表示時に単語を読み上げ（CMブレイク中は除く）
+  useEffect(() => {
+    if (cmData) return
+    if (word?.word) speak(word.word, 'en-US', 0.85)
+    return () => {
+      try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
+    }
+  }, [current, cmData]) // eslint-disable-line
+
   async function handleTimeoutInternal() {
     const existing = await db.cards.where('wordId').equals(word.id).first()
     if (existing) {
@@ -908,7 +908,7 @@ function ClearScreen({ parts, elapsed, onRetry, onHome }) {
           🎉 30問クリア！！！
         </h1>
 
-        <p className="text-slate-300 text-lg mb-1">+10ポイント獲得 🎊</p>
+        <p className="text-slate-300 text-lg mb-1">+1ポイント獲得 🎊</p>
         <p className="text-slate-400 text-sm mb-1">{parts.join(' + ')}</p>
 
         {elapsed != null && (

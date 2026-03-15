@@ -1,18 +1,8 @@
 import { useState, useEffect } from 'react'
 import { db } from '../db/database'
 import { findRoots } from '../utils/findRoots'
+import { speak } from '../utils/speak'
 import WordCard from './WordCard'
-
-function speak(text, lang = 'en-US', rate = 0.85) {
-  try {
-    if (!window.speechSynthesis) return
-    window.speechSynthesis.cancel()
-    const utter = new SpeechSynthesisUtterance(text)
-    utter.lang = lang
-    utter.rate = rate
-    window.speechSynthesis.speak(utter)
-  } catch { /* ignore */ }
-}
 
 /**
  * WordDetailScreen - 単語解説画面（全画面共通）

@@ -2,24 +2,41 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import { useUserStats } from '../hooks/useUserStats'
+import { speak } from '../utils/speak'
 import WordDetailScreen from '../components/WordDetailScreen'
 
 const PARTS = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4', 'α']
+const HISTORY_MODE = '最近の学習から'
 const SESSION_COUNT = 5
+const MAX_SELECT = 5
 
-// ── speech helper ──────────────────────────
-function speak(text, lang = 'en-US', rate = 0.85) {
-  try {
-    if (!window.speechSynthesis) return
-    window.speechSynthesis.cancel()
-    const utter = new SpeechSynthesisUtterance(text)
-    utter.lang = lang
-    utter.rate = rate
-    window.speechSynthesis.speak(utter)
-  } catch { /* ignore */ }
+
+// ── word lookup helper（バグ修正: word文字列を優先キーに）──
+async function enrichSentences(sentences) {
+  const wordStrings = [...new Set(sentences.map(s => s.word).filter(Boolean))]
+  if (wordStrings.length === 0) return sentences
+  const wordRecords = await db.words.where('word').anyOf(wordStrings).toArray()
+
+  // 精密マップ: "word:leapNumber" → wordObj
+  const preciseMap = {}
+  // フォールバックマップ: word文字列 → wordObj（最初のマッチ）
+  const wordStringMap = {}
+  for (const w of wordRecords) {
+    const key = `${w.word}:${w.leapNumber}`
+    preciseMap[key] = w
+    if (!wordStringMap[w.word]) wordStringMap[w.word] = w
+  }
+
+  return sentences.map(s => {
+    const matched =
+      preciseMap[`${s.word}:${s.leapNumber}`] ??
+      wordStringMap[s.word] ??
+      null
+    return { ...s, wordId: matched?.id ?? null, wordObj: matched ?? null }
+  })
 }
 
-// ── データ取得 ──────────────────────────────
+// ── パート指定でランダム出題 ──────────────────
 async function fetchQuestions(part, count) {
   let query = part === 'すべて'
     ? db.warmupSentences.toCollection()
@@ -30,18 +47,25 @@ async function fetchQuestions(part, count) {
 
   const shuffled = [...all].sort(() => Math.random() - 0.5)
   const selected = shuffled.slice(0, count)
+  return enrichSentences(selected)
+}
 
-  const leapNumbers = [...new Set(selected.map(s => s.leapNumber).filter(Boolean))]
-  if (leapNumbers.length > 0) {
-    const wordRecords = await db.words.where('leapNumber').anyOf(leapNumbers).toArray()
-    const wordMap = Object.fromEntries(wordRecords.map(w => [w.leapNumber, w]))
-    return selected.map(s => ({
-      ...s,
-      wordId: wordMap[s.leapNumber]?.id ?? null,
-      wordObj: wordMap[s.leapNumber] ?? null,
-    }))
+// ── 選択した単語から出題（履歴選択モード）──────
+async function fetchQuestionsForWords(selectedWordObjs) {
+  const wordStrings = selectedWordObjs.map(w => w.word)
+  const sentences = await db.warmupSentences.where('word').anyOf(wordStrings).toArray()
+  if (sentences.length === 0) return []
+
+  // 各単語につき例文をランダムに1つ選ぶ
+  const result = []
+  for (const wordObj of selectedWordObjs) {
+    const matching = sentences.filter(s => s.word === wordObj.word)
+    if (matching.length > 0) {
+      const picked = matching[Math.floor(Math.random() * matching.length)]
+      result.push({ ...picked, wordId: wordObj.id, wordObj })
+    }
   }
-  return selected
+  return result
 }
 
 // ── studyCount +1（問題表示ごと・1問1回のみ）──
@@ -69,12 +93,15 @@ async function incrementStudyCount(wordId) {
 // ─────────────────────────────────────────────
 // SelectScreen
 // ─────────────────────────────────────────────
-function SelectScreen({ onStart }) {
+function SelectScreen({ onStart, onHistorySelect }) {
   const [selectedPart, setSelectedPart] = useState('すべて')
   const [totalCount, setTotalCount] = useState(0)
   const navigate = useNavigate()
 
+  const isHistoryMode = selectedPart === HISTORY_MODE
+
   useEffect(() => {
+    if (isHistoryMode) { setTotalCount(-1); return }
     async function load() {
       const count = selectedPart === 'すべて'
         ? await db.warmupSentences.count()
@@ -82,9 +109,13 @@ function SelectScreen({ onStart }) {
       setTotalCount(count)
     }
     load()
-  }, [selectedPart])
+  }, [selectedPart, isHistoryMode])
 
   async function handleStart() {
+    if (isHistoryMode) {
+      onHistorySelect()
+      return
+    }
     const questions = await fetchQuestions(selectedPart, SESSION_COUNT)
     if (questions.length === 0) return
     onStart(questions)
@@ -102,7 +133,7 @@ function SelectScreen({ onStart }) {
           </div>
         </div>
 
-        {totalCount === 0 && (
+        {totalCount === 0 && !isHistoryMode && (
           <div className="mb-6 p-4 bg-amber-900/30 border border-amber-700 rounded-xl text-amber-300 text-sm">
             ⚠️ 例文データが未ロードです。アプリを再起動してください。
           </div>
@@ -122,19 +153,160 @@ function SelectScreen({ onStart }) {
                 }`}
               >{p}</button>
             ))}
+            <button
+              onClick={() => setSelectedPart(HISTORY_MODE)}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-1 ${
+                isHistoryMode
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+            >
+              <span>🕐</span>
+              <span>{HISTORY_MODE}</span>
+            </button>
           </div>
-          {totalCount > 0 && (
+          {!isHistoryMode && totalCount > 0 && (
             <p className="text-slate-600 text-xs mt-2">{totalCount.toLocaleString()}問から出題</p>
+          )}
+          {isHistoryMode && (
+            <p className="text-slate-600 text-xs mt-2">次の画面で単語を最大5個選択します</p>
           )}
         </div>
 
         <button
           onClick={handleStart}
-          disabled={totalCount === 0}
+          disabled={!isHistoryMode && totalCount === 0}
           className="w-full py-5 text-xl font-bold bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-2xl transition-colors active:scale-95"
         >
-          スタート
+          {isHistoryMode ? '単語を選ぶ →' : 'スタート'}
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// HistorySelectScreen（履歴から単語選択）
+// ─────────────────────────────────────────────
+function HistorySelectScreen({ onStart, onBack }) {
+  const [entries, setEntries] = useState([])
+  const [selected, setSelected] = useState(new Set())
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const allCards = await db.cards
+        .filter(c => !!c.lastReviewed)
+        .toArray()
+      if (allCards.length === 0) { setLoading(false); return }
+
+      // lastReviewed 降順にソート
+      allCards.sort((a, b) => new Date(b.lastReviewed) - new Date(a.lastReviewed))
+
+      const wordIds = allCards.map(c => c.wordId)
+      const words = await db.words.where('id').anyOf(wordIds).toArray()
+      const wordMap = Object.fromEntries(words.map(w => [w.id, w]))
+
+      // 重複単語を除いてリスト化（最新のものを先頭に）
+      const seen = new Set()
+      const list = []
+      for (const card of allCards) {
+        const wordObj = wordMap[card.wordId]
+        if (!wordObj || seen.has(wordObj.id)) continue
+        seen.add(wordObj.id)
+        list.push({ wordObj, lastReviewed: new Date(card.lastReviewed) })
+      }
+
+      setEntries(list)
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  function toggleSelect(wordId) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(wordId)) {
+        next.delete(wordId)
+      } else {
+        if (next.size >= MAX_SELECT) return prev
+        next.add(wordId)
+      }
+      return next
+    })
+  }
+
+  async function handleStart() {
+    if (selected.size === 0) return
+    const selectedWordObjs = entries
+      .filter(e => selected.has(e.wordObj.id))
+      .map(e => e.wordObj)
+    const questions = await fetchQuestionsForWords(selectedWordObjs)
+    if (questions.length === 0) return
+    onStart(questions)
+  }
+
+  function fmtTime(date) {
+    return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-white flex flex-col px-4 py-8">
+      <div className="max-w-sm mx-auto w-full flex flex-col h-full">
+
+        <div className="flex items-center mb-2">
+          <button onClick={onBack} className="text-slate-400 hover:text-white mr-4 text-lg">← 戻る</button>
+          <div>
+            <h1 className="text-xl font-bold">🕐 最近の学習から選択</h1>
+            <p className="text-slate-500 text-xs mt-0.5">最大{MAX_SELECT}個まで選べます</p>
+          </div>
+        </div>
+
+        <p className="text-slate-600 text-xs mb-4">
+          選択中: <span className={`font-bold ${selected.size > 0 ? 'text-amber-400' : 'text-slate-600'}`}>{selected.size}</span> / {MAX_SELECT}
+        </p>
+
+        <button
+          onClick={handleStart}
+          disabled={selected.size === 0}
+          className="w-full py-4 text-lg font-bold bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-2xl transition-colors active:scale-95 mb-3"
+        >
+          スタート（{selected.size}問）
+        </button>
+
+        {loading ? (
+          <p className="text-slate-600 text-center py-10">読み込み中…</p>
+        ) : entries.length === 0 ? (
+          <p className="text-slate-600 text-sm">まだ学習履歴がありません</p>
+        ) : (
+          <div className="flex flex-col gap-1 flex-1 overflow-y-auto">
+            {entries.map(({ wordObj, lastReviewed }) => {
+              const isSelected = selected.has(wordObj.id)
+              const isDisabled = !isSelected && selected.size >= MAX_SELECT
+              return (
+                <button
+                  key={wordObj.id}
+                  onClick={() => toggleSelect(wordObj.id)}
+                  disabled={isDisabled}
+                  className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 active:scale-95 transition-all ${
+                    isSelected
+                      ? 'bg-amber-600/30 border border-amber-500/60'
+                      : isDisabled
+                        ? 'bg-slate-800/40 border border-transparent opacity-40'
+                        : 'bg-slate-800 border border-transparent hover:bg-slate-700'
+                  }`}
+                >
+                  <span className={`text-lg ${isSelected ? 'text-amber-400' : 'text-slate-600'}`}>
+                    {isSelected ? '✓' : '○'}
+                  </span>
+                  <span className="font-bold flex-1 text-white">{wordObj.word}</span>
+                  <span className="text-slate-500 text-xs truncate max-w-24">{wordObj.meaning}</span>
+                  <span className="text-slate-600 text-xs ml-1 shrink-0">{fmtTime(lastReviewed)}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -373,6 +545,16 @@ export default function Warmup() {
     return (
       <SelectScreen
         onStart={qs => { setQuestions(qs); setPhase('quiz') }}
+        onHistorySelect={() => setPhase('history-select')}
+      />
+    )
+  }
+
+  if (phase === 'history-select') {
+    return (
+      <HistorySelectScreen
+        onStart={qs => { setQuestions(qs); setPhase('quiz') }}
+        onBack={() => setPhase('select')}
       />
     )
   }

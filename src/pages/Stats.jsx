@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import { useUserStats } from '../hooks/useUserStats'
@@ -87,6 +87,20 @@ export default function Stats() {
   const [badgeWords, setBadgeWords]             = useState([])
   const [loading, setLoading]                   = useState(true)
   const [selectedWord, setSelectedWord]         = useState(null)
+  const scrollPosRef = useRef(0)
+
+  // 単語詳細から戻ったときにスクロール位置を復元
+  useEffect(() => {
+    if (selectedWord === null && scrollPosRef.current > 0) {
+      const pos = scrollPosRef.current
+      requestAnimationFrame(() => window.scrollTo(0, pos))
+    }
+  }, [selectedWord])
+
+  function handleSelectWord(word) {
+    scrollPosRef.current = window.scrollY
+    setSelectedWord(word)
+  }
 
   useEffect(() => {
     async function load() {
@@ -297,7 +311,7 @@ export default function Stats() {
                   {studyRanking.map(({ card, word }, i) => (
                     <button
                       key={word.id}
-                      onClick={() => setSelectedWord(word)}
+                      onClick={() => handleSelectWord(word)}
                       className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-4 py-3 text-left active:scale-95 transition-all"
                     >
                       <span className="text-slate-600 text-sm w-5 text-right">{i + 1}</span>
@@ -324,7 +338,7 @@ export default function Stats() {
                   {badgeWords.map(({ card, word }) => (
                     <button
                       key={word.id}
-                      onClick={() => setSelectedWord(word)}
+                      onClick={() => handleSelectWord(word)}
                       className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-4 py-3 text-left active:scale-95 transition-all"
                     >
                       <img src="/badge.png" alt="badge" style={{ width: 24, height: 24, flexShrink: 0 }} />

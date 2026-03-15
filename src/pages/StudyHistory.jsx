@@ -33,19 +33,22 @@ export default function StudyHistory() {
       for (const card of allCards) {
         if (!card.lastReviewed || !wordMap[card.wordId]) continue
         const key = dayKey(card.lastReviewed)
+        const lastReviewed = new Date(card.lastReviewed)
         if (!dateMap[key]) {
-          dateMap[key] = { dateKey: key, date: new Date(card.lastReviewed), words: [] }
+          dateMap[key] = { dateKey: key, date: lastReviewed, entries: [] }
         }
-        dateMap[key].words.push(wordMap[card.wordId])
+        dateMap[key].entries.push({ word: wordMap[card.wordId], lastReviewed })
       }
 
-      // 新しい日付が上・単語はアルファベット順
+      // 新しい日付が上・単語は学習時刻が新しい順
       const sorted = Object.values(dateMap)
         .sort((a, b) => b.date - a.date)
         .map(g => ({
           ...g,
           dateLabel: fmtDate(g.date),
-          words: g.words.sort((a, b) => a.word.localeCompare(b.word)),
+          words: g.entries
+            .sort((a, b) => b.lastReviewed - a.lastReviewed)
+            .map(e => e.word),
         }))
 
       setGroups(sorted)

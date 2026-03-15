@@ -78,7 +78,7 @@ export function useUserStats() {
 
     const updated = {
       ...current,
-      totalPoints: current.totalPoints + 10,
+      totalPoints: current.totalPoints + 1,
       currentStreak: newStreak,
       lastStudyDate: today,
       challengeClearCount: current.challengeClearCount + 1,
