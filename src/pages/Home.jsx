@@ -1,11 +1,23 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUserStats } from '../hooks/useUserStats'
 import StreakBadge from '../components/StreakBadge'
 import PointDisplay from '../components/PointDisplay'
+import { db } from '../db/database'
 
 export default function Home() {
   const navigate = useNavigate()
   const { stats, loading } = useUserStats()
+  const [totalStudyCount, setTotalStudyCount] = useState(0)
+
+  useEffect(() => {
+    db.cards.toArray()
+      .then(cards => {
+        const total = cards.reduce((sum, c) => sum + (c.studyCount ?? 0), 0)
+        setTotalStudyCount(total)
+      })
+      .catch(() => {})
+  }, [])
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center px-4 py-10">
@@ -22,7 +34,7 @@ export default function Home() {
       <p className="text-slate-500 text-sm mb-10">英単語自学習アプリ</p>
 
       {/* ストリーク・ポイント */}
-      <div className="flex gap-12 mb-12">
+      <div className="flex gap-8 mb-6">
         {loading ? (
           <div className="text-slate-600 text-sm">読み込み中…</div>
         ) : (
@@ -34,6 +46,14 @@ export default function Home() {
             />
           </>
         )}
+      </div>
+
+      {/* 総出会い数 */}
+      <div className="text-center mb-10">
+        <div className="text-3xl font-black text-purple-400 tabular-nums">
+          {totalStudyCount.toLocaleString()}
+        </div>
+        <div className="text-slate-500 text-xs mt-1">総出会い数</div>
       </div>
 
       {/* ナビゲーションボタン */}

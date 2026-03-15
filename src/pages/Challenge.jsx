@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import { useUserStats } from '../hooks/useUserStats'
 import { findRoots } from '../utils/findRoots'
+import WordCard from '../components/WordCard'
 
 const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const GOAL = 30
@@ -162,6 +163,7 @@ function WordFamilySection({ word }) {
 function PartSelect({ onStart, timerSecs }) {
   const [selected, setSelected] = useState(getLastParts)
   const [wordCounts, setWordCounts] = useState({})
+  const navigate = useNavigate()
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -221,6 +223,13 @@ function PartSelect({ onStart, timerSecs }) {
         className="w-full max-w-sm py-5 text-xl font-bold bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-2xl transition-colors"
       >
         スタート
+      </button>
+
+      <button
+        onClick={() => navigate('/')}
+        className="w-full max-w-sm py-4 text-slate-500 hover:text-slate-300 text-base transition-colors"
+      >
+        ← ホームに戻る
       </button>
     </div>
   )
@@ -424,9 +433,9 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
         <p className="text-slate-500 text-base font-bold mb-2">
           No.{word.leapNumber} &nbsp;<span className="text-slate-600">{word.leapPart}</span>
         </p>
-        <p className="text-6xl font-black mb-4 leading-tight tracking-tight">
-          {word.word}
-        </p>
+        <div className="flex justify-center mb-4">
+          <WordCard word={word} textClassName="text-6xl font-black leading-tight tracking-tight" />
+        </div>
         <p className="text-2xl text-slate-200 font-medium mb-1">{word.meaning}</p>
         {word.partOfSpeech && (
           <p className="text-slate-600 text-sm">{word.partOfSpeech}</p>
@@ -552,6 +561,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
     if (existing) {
       await db.cards.update(existing.id, {
         incorrectCount: (existing.incorrectCount ?? 0) + 1,
+        studyCount: (existing.studyCount ?? 0) + 1,
         lastReviewed: new Date(),
       })
     } else {
@@ -560,6 +570,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
         lastReviewed: new Date(),
         correctCount: 0,
         incorrectCount: 1,
+        studyCount: 1,
       })
     }
     onTimeout(word, streak)
@@ -576,6 +587,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
     if (existing) {
       await db.cards.update(existing.id, {
         correctCount: (existing.correctCount ?? 0) + 1,
+        studyCount: (existing.studyCount ?? 0) + 1,
         lastReviewed: new Date(),
       })
     } else {
@@ -584,6 +596,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
         lastReviewed: new Date(),
         correctCount: 1,
         incorrectCount: 0,
+        studyCount: 1,
       })
     }
 
@@ -715,7 +728,10 @@ function TimeoutScreen({ word, streak, reason, onRetry, onHome }) {
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center px-4 text-center">
       <div className="text-5xl mb-4">{isHonest ? '🙏' : '⏰'}</div>
       <p className="text-slate-400 text-xl font-bold mb-1">{word.leapPart} &nbsp;No.{word.leapNumber}</p>
-      <p className="text-6xl font-black mb-6">{word.word}</p>
+      <div className="mb-3">
+        <WordCard word={word} textClassName="text-6xl font-black" />
+      </div>
+      <p className="text-slate-200 text-xl font-medium mb-5">{word.meaning}</p>
       <p className="text-slate-600 text-sm mb-8">
         {isHonest
           ? `ブロック正解 ${streak} 問で終了`

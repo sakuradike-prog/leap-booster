@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import { useUserStats } from '../hooks/useUserStats'
+import WordCard from '../components/WordCard'
 
 const PARTS = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4', 'α']
 const SESSION_OPTIONS = [5, 10, 15, 20]
@@ -20,7 +21,16 @@ async function fetchQuestions(part, count) {
 
   // ランダムシャッフルして count 件取得
   const shuffled = [...all].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, count)
+  const selected = shuffled.slice(0, count)
+
+  // leapNumber から wordId を取得して付加（WordCard・studyCount用）
+  const leapNumbers = [...new Set(selected.map(s => s.leapNumber).filter(Boolean))]
+  if (leapNumbers.length > 0) {
+    const wordRecords = await db.words.where('leapNumber').anyOf(leapNumbers).toArray()
+    const wordIdMap = Object.fromEntries(wordRecords.map(w => [w.leapNumber, w.id]))
+    return selected.map(s => ({ ...s, wordId: wordIdMap[s.leapNumber] ?? null }))
+  }
+  return selected
 }
 
 // ────────────────────────────────────────────
@@ -125,15 +135,16 @@ function SelectScreen({ onStart }) {
 // ────────────────────────────────────────────
 // 問題カード（1問）
 // ────────────────────────────────────────────
-function QuizCard({ question, questionNumber, totalQuestions, onCorrect, onRetry }) {
+function QuizCard({ question, questionNumber, totalQuestions, onCorrect, onRetry, onReveal }) {
   const [revealed, setRevealed] = useState(false)
 
   // 問題が切り替わったら必ず折り畳む
   useEffect(() => { setRevealed(false) }, [question])
 
-  const label = question.exampleTotal > 1
-    ? `${question.word} (${question.exampleIndex}/${question.exampleTotal})`
-    : question.word
+  function handleReveal() {
+    setRevealed(true)
+    onReveal?.()
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col px-5 py-8">
@@ -149,8 +160,22 @@ function QuizCard({ question, questionNumber, totalQuestions, onCorrect, onRetry
         </span>
       </div>
 
-      {/* 単語名 */}
-      <p className="text-amber-400 text-lg font-bold mb-6 tracking-tight">{label}</p>
+      {/* 単語名（WordCard でフリップ可能） */}
+      <div className="mb-6 flex items-center gap-2">
+        {question.wordId ? (
+          <WordCard
+            word={{ id: question.wordId, word: question.word }}
+            textClassName="text-amber-400 text-lg font-bold tracking-tight"
+          />
+        ) : (
+          <span className="text-amber-400 text-lg font-bold tracking-tight">{question.word}</span>
+        )}
+        {question.exampleTotal > 1 && (
+          <span className="text-slate-600 text-sm">
+            ({question.exampleIndex}/{question.exampleTotal})
+          </span>
+        )}
+      </div>
 
       {/* 日本語（問題） */}
       <div className="flex-1 flex items-center justify-center">
@@ -164,7 +189,7 @@ function QuizCard({ question, questionNumber, totalQuestions, onCorrect, onRetry
           {!revealed ? (
             /* 答えを見るボタン */
             <button
-              onClick={() => setRevealed(true)}
+              onClick={handleReveal}
               className="w-full py-5 text-lg font-bold bg-blue-600 hover:bg-blue-500 rounded-2xl transition-colors active:scale-95"
             >
               答えを見る
@@ -211,6 +236,28 @@ function QuizScreen({ initialQuestions, onComplete }) {
 
   const current = queue[0]
 
+  // 答えを見たときに studyCount を +1（出題1回につき1カウント）
+  const handleReveal = useCallback(async () => {
+    if (!current?.wordId) return
+    try {
+      const existing = await db.cards.where('wordId').equals(current.wordId).first()
+      if (existing) {
+        await db.cards.update(existing.id, {
+          studyCount: (existing.studyCount ?? 0) + 1,
+          lastReviewed: new Date(),
+        })
+      } else {
+        await db.cards.add({
+          wordId: current.wordId,
+          lastReviewed: new Date(),
+          correctCount: 0,
+          incorrectCount: 0,
+          studyCount: 1,
+        })
+      }
+    } catch { /* ignore */ }
+  }, [current])
+
   const handleCorrect = useCallback(() => {
     setCorrectCount(c => c + 1)
     setAnswered(a => a + 1)
@@ -239,6 +286,7 @@ function QuizScreen({ initialQuestions, onComplete }) {
       totalQuestions={total + queue.filter((q, i) => i > 0 && initialQuestions.indexOf(q) === -1 ? false : true).length}
       onCorrect={handleCorrect}
       onRetry={handleRetry}
+      onReveal={handleReveal}
     />
   )
 }

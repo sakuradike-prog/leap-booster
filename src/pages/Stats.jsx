@@ -4,6 +4,7 @@ import { db } from '../db/database'
 import { useUserStats } from '../hooks/useUserStats'
 import StreakBadge from '../components/StreakBadge'
 import PointDisplay from '../components/PointDisplay'
+import WordCard from '../components/WordCard'
 
 // ---- バッジ定義 ----
 const POINT_BADGES = [
@@ -81,6 +82,8 @@ export default function Stats() {
   const [challengeHistory, setChallengeHistory] = useState([])
   const [weekActivity, setWeekActivity]         = useState([]) // 直近7日の情報
   const [weakWords, setWeakWords]               = useState([])
+  const [studyRanking, setStudyRanking]         = useState([])
+  const [badgeWords, setBadgeWords]             = useState([])
   const [loading, setLoading]                   = useState(true)
 
   useEffect(() => {
@@ -125,8 +128,10 @@ export default function Stats() {
         cleared: clearKeys.has(dayKey(d)),
       })))
 
-      // 苦手な単語トップ10（incorrectCountはインデックス外のためJS側でソート）
+      // 苦手な単語トップ10 + 総学習回数ランキング + バッジ獲得単語リスト
       const allCards = await db.cards.toArray()
+
+      // 苦手単語
       const topCards = allCards
         .filter(c => (c.incorrectCount ?? 0) > 0)
         .sort((a, b) => (b.incorrectCount ?? 0) - (a.incorrectCount ?? 0))
@@ -140,6 +145,35 @@ export default function Stats() {
           .slice(0, 10)
           .map(c => ({ card: c, word: wordMap[c.wordId] }))
         setWeakWords(ranked)
+      }
+
+      // 総学習回数ランキング トップ10
+      const topStudy = allCards
+        .filter(c => (c.studyCount ?? 0) > 0)
+        .sort((a, b) => (b.studyCount ?? 0) - (a.studyCount ?? 0))
+        .slice(0, 10)
+      if (topStudy.length > 0) {
+        const studyWordIds = topStudy.map(c => c.wordId)
+        const studyWords = await db.words.where('id').anyOf(studyWordIds).toArray()
+        const studyWordMap = Object.fromEntries(studyWords.map(w => [w.id, w]))
+        setStudyRanking(
+          topStudy.filter(c => studyWordMap[c.wordId])
+            .map(c => ({ card: c, word: studyWordMap[c.wordId] }))
+        )
+      }
+
+      // バッジ獲得単語リスト（studyCount >= 100）
+      const badgeCards = allCards
+        .filter(c => (c.studyCount ?? 0) >= 100)
+        .sort((a, b) => (b.studyCount ?? 0) - (a.studyCount ?? 0))
+      if (badgeCards.length > 0) {
+        const badgeWordIds = badgeCards.map(c => c.wordId)
+        const bWords = await db.words.where('id').anyOf(badgeWordIds).toArray()
+        const bWordMap = Object.fromEntries(bWords.map(w => [w.id, w]))
+        setBadgeWords(
+          badgeCards.filter(c => bWordMap[c.wordId])
+            .map(c => ({ card: c, word: bWordMap[c.wordId] }))
+        )
       }
 
       setLoading(false)
@@ -234,10 +268,58 @@ export default function Stats() {
                   {weakWords.map(({ card, word }, i) => (
                     <div key={word.id} className="flex items-center gap-3 bg-slate-800 rounded-xl px-4 py-3">
                       <span className="text-slate-600 text-sm w-5 text-right">{i + 1}</span>
-                      <span className="font-bold flex-1">{word.word}</span>
+                      <div className="flex-1">
+                        <WordCard word={word} textClassName="font-bold text-white" />
+                      </div>
                       <span className="text-slate-400 text-sm truncate max-w-24">{word.meaning}</span>
                       <span className="text-red-400 text-sm font-bold tabular-nums">
                         ×{card.incorrectCount}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* 総学習回数ランキング */}
+            <section className="mb-8">
+              <h2 className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-3">総学習回数ランキング</h2>
+              {studyRanking.length === 0 ? (
+                <p className="text-slate-600 text-sm">まだデータがありません</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {studyRanking.map(({ card, word }, i) => (
+                    <div key={word.id} className="flex items-center gap-3 bg-slate-800 rounded-xl px-4 py-3">
+                      <span className="text-slate-600 text-sm w-5 text-right">{i + 1}</span>
+                      <div className="flex-1">
+                        <WordCard word={word} textClassName="font-bold text-white" />
+                      </div>
+                      <span className="text-slate-400 text-sm truncate max-w-24">{word.meaning}</span>
+                      <span className="text-amber-400 text-sm font-bold tabular-nums">
+                        {(card.studyCount ?? 0).toLocaleString()}回
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* バッジ獲得単語リスト */}
+            <section className="mb-8">
+              <h2 className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-3">🎖 バッジ獲得単語</h2>
+              {badgeWords.length === 0 ? (
+                <p className="text-slate-600 text-sm">100回出会った単語がここに表示されます</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {badgeWords.map(({ card, word }) => (
+                    <div key={word.id} className="flex items-center gap-3 bg-slate-800 rounded-xl px-4 py-3">
+                      <img src="/badge.png" alt="badge" style={{ width: 24, height: 24, flexShrink: 0 }} />
+                      <div className="flex-1">
+                        <WordCard word={word} textClassName="font-bold text-white" />
+                      </div>
+                      <span className="text-slate-400 text-sm truncate max-w-24">{word.meaning}</span>
+                      <span className="text-amber-400 text-sm font-bold tabular-nums">
+                        {(card.studyCount ?? 0).toLocaleString()}回
                       </span>
                     </div>
                   ))}

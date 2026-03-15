@@ -24,3 +24,9 @@ db.version(3).stores({
   // 語源マスタ（leap_roots.csv）
   roots: '++id, root',
 })
+
+db.version(4).stores({
+  // cards に studyCount フィールドを追加（インデックス不要・JS側でソート）
+  // スキーマ変更なし: 既存データは studyCount=undefined → ?? 0 で扱う
+  cards: '++id, wordId, lastReviewed',
+})
