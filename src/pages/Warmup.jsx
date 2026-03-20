@@ -77,11 +77,13 @@ async function fetchQuestionsForWords(selectedWordObjs) {
 async function fetchQuestionsForNumbers(leapNumbers) {
   const nums = leapNumbers.filter(n => !isNaN(n) && n > 0)
   if (nums.length === 0) return []
+  // leapNumber はインデックス未設定のため filter() で全走査
+  const all = await db.warmupSentences.toArray()
   const results = []
   for (const num of nums) {
-    const sentences = await db.warmupSentences.where('leapNumber').equals(num).toArray()
-    if (sentences.length > 0) {
-      const picked = sentences[Math.floor(Math.random() * sentences.length)]
+    const matched = all.filter(s => s.leapNumber === num)
+    if (matched.length > 0) {
+      const picked = matched[Math.floor(Math.random() * matched.length)]
       results.push(picked)
     }
   }
