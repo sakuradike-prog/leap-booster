@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import WordDetailScreen from '../components/WordDetailScreen'
+import WordBadges from '../components/WordBadges'
 
 function fmtDate(date) {
   const d = new Date(date)
@@ -21,34 +22,68 @@ export default function StudyHistory() {
 
   useEffect(() => {
     async function load() {
-      const allCards = await db.cards.filter(c => !!c.lastReviewed).toArray()
-      if (allCards.length === 0) { setLoading(false); return }
+      const [allCards, capturedList] = await Promise.all([
+        db.cards.filter(c => !!c.lastReviewed).toArray(),
+        db.captured_words.toArray(),
+      ])
 
-      const wordIds = allCards.map(c => c.wordId)
-      const words = await db.words.where('id').anyOf(wordIds).toArray()
-      const wordMap = Object.fromEntries(words.map(w => [w.id, w]))
+      // 全wordIdを集める（cards + captured_words の leapNumber で lookup）
+      const cardWordIds = allCards.map(c => c.wordId)
+      const capturedLeapNums = capturedList.map(c => c.leapNumber)
 
-      // 日付でグループ化
-      const dateMap = {}
-      for (const card of allCards) {
-        if (!card.lastReviewed || !wordMap[card.wordId]) continue
-        const key = dayKey(card.lastReviewed)
-        const lastReviewed = new Date(card.lastReviewed)
-        if (!dateMap[key]) {
-          dateMap[key] = { dateKey: key, date: lastReviewed, entries: [] }
-        }
-        dateMap[key].entries.push({ word: wordMap[card.wordId], lastReviewed })
+      const [cardWords, capturedWords] = await Promise.all([
+        cardWordIds.length > 0
+          ? db.words.where('id').anyOf(cardWordIds).toArray()
+          : Promise.resolve([]),
+        capturedLeapNums.length > 0
+          ? db.words.where('leapNumber').anyOf(capturedLeapNums).toArray()
+          : Promise.resolve([]),
+      ])
+
+      const wordMap = Object.fromEntries(cardWords.map(w => [w.id, w]))
+      // leapNumber → word（複数PartにまたがるNO重複があるため最初の1件を使う）
+      const leapNumMap = {}
+      for (const w of capturedWords) {
+        if (!leapNumMap[w.leapNumber]) leapNumMap[w.leapNumber] = w
       }
 
-      // 新しい日付が上・単語は学習時刻が新しい順
+      // 日付でグループ化（wordId + dateKey でユニーク）
+      const dateMap = {}
+      const seenKeys = new Set()
+
+      function addEntry(key, date, word, isCaptured = false) {
+        const dedupeKey = `${word.id}_${key}`
+        if (seenKeys.has(dedupeKey)) return
+        seenKeys.add(dedupeKey)
+        if (!dateMap[key]) dateMap[key] = { dateKey: key, date, entries: [] }
+        dateMap[key].entries.push({ word, date: new Date(date), isCaptured })
+      }
+
+      // cards からの履歴
+      for (const card of allCards) {
+        if (!card.lastReviewed || !wordMap[card.wordId]) continue
+        const d = new Date(card.lastReviewed)
+        addEntry(dayKey(d), d, wordMap[card.wordId], false)
+      }
+
+      // captured_words からの履歴
+      for (const cap of capturedList) {
+        const word = leapNumMap[cap.leapNumber]
+        if (!word) continue
+        const d = cap.capturedAt ? new Date(cap.capturedAt) : new Date()
+        addEntry(dayKey(d), d, word, true)
+      }
+
+      if (Object.keys(dateMap).length === 0) { setLoading(false); return }
+
+      // 新しい日付が上・単語は時刻が新しい順
       const sorted = Object.values(dateMap)
         .sort((a, b) => b.date - a.date)
         .map(g => ({
           ...g,
           dateLabel: fmtDate(g.date),
-          words: g.entries
-            .sort((a, b) => b.lastReviewed - a.lastReviewed)
-            .map(e => e.word),
+          entries: g.entries.sort((a, b) => b.date - a.date),
+          words: g.entries.sort((a, b) => b.date - a.date).map(e => e.word),
         }))
 
       setGroups(sorted)
@@ -84,18 +119,22 @@ export default function StudyHistory() {
           <p className="text-slate-600 text-sm">まだ学習履歴がありません</p>
         ) : (
           <div className="flex flex-col gap-6">
-            {groups.map(({ dateKey, dateLabel, words }) => (
+            {groups.map(({ dateKey, dateLabel, words, entries }) => (
               <div key={dateKey}>
-                <p className="text-slate-400 text-sm font-bold mb-2">{dateLabel}</p>
+                <p className="text-slate-400 text-sm font-bold mb-2">{dateLabel}
+                  <span className="text-slate-600 font-normal ml-2">{entries.length}件</span>
+                </p>
                 <div className="flex flex-col gap-1">
-                  {words.map((word, i) => (
+                  {entries.map(({ word, isCaptured }, i) => (
                     <button
-                      key={word.id}
+                      key={`${word.id}_${i}`}
                       onClick={() => setWordContext({ word, sessionWords: words, sessionIndex: i })}
                       className="w-full text-left px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-3 active:scale-95 transition-all"
                     >
-                      <span className="text-white font-bold flex-1">{word.word}</span>
-                      <span className="text-slate-500 text-sm truncate max-w-32">{word.meaning}</span>
+                      <span className="text-slate-500 text-xs w-14 shrink-0">No.{word.leapNumber}</span>
+                      <WordBadges isCaptured={isCaptured} />
+                      <span className="text-white font-bold flex-1 truncate">{word.word}</span>
+                      <span className="text-slate-500 text-sm truncate max-w-28">{word.meaning}</span>
                     </button>
                   ))}
                 </div>
