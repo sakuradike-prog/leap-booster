@@ -76,7 +76,7 @@ export default function Settings() {
     if (!window.speechSynthesis) return
     function loadVoices() {
       const all = window.speechSynthesis.getVoices()
-      const enVoices = all.filter(v => v.lang.startsWith('en'))
+      const enVoices = all.filter(v => v.lang === 'en-US' || v.lang === 'en-GB')
       if (enVoices.length > 0) setVoices(enVoices)
     }
     loadVoices()
