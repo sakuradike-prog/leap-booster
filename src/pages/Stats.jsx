@@ -4,7 +4,6 @@ import { db } from '../db/database'
 import { useUserStats } from '../hooks/useUserStats'
 import StreakBadge from '../components/StreakBadge'
 import PointDisplay from '../components/PointDisplay'
-import WordCard from '../components/WordCard'
 import WordDetailScreen from '../components/WordDetailScreen'
 
 // ---- バッジ定義 ----
@@ -300,9 +299,7 @@ export default function Stats() {
                       className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-4 py-3 text-left active:scale-95 transition-all"
                     >
                       <span className="text-slate-600 text-sm w-5 text-right">{i + 1}</span>
-                      <div className="flex-1">
-                        <WordCard word={word} textClassName="font-bold text-white" />
-                      </div>
+                      <span className="flex-1 font-bold text-white text-sm truncate">{word.word}</span>
                       <span className="text-slate-400 text-sm truncate max-w-24">{word.meaning}</span>
                       <span className="text-red-400 text-sm font-bold tabular-nums">
                         ×{card.incorrectCount}
@@ -327,9 +324,7 @@ export default function Stats() {
                       className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-4 py-3 text-left active:scale-95 transition-all"
                     >
                       <span className="text-slate-600 text-sm w-5 text-right">{i + 1}</span>
-                      <div className="flex-1">
-                        <WordCard word={word} textClassName="font-bold text-white" />
-                      </div>
+                      <span className="flex-1 font-bold text-white text-sm truncate">{word.word}</span>
                       <span className="text-slate-400 text-sm truncate max-w-24">{word.meaning}</span>
                       <span className="text-amber-400 text-sm font-bold tabular-nums">
                         {(card.studyCount ?? 0).toLocaleString()}回
@@ -354,9 +349,7 @@ export default function Stats() {
                       className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-4 py-3 text-left active:scale-95 transition-all"
                     >
                       <img src="/badge.png" alt="badge" style={{ width: 24, height: 24, flexShrink: 0 }} />
-                      <div className="flex-1">
-                        <WordCard word={word} textClassName="font-bold text-white" />
-                      </div>
+                      <span className="flex-1 font-bold text-white text-sm truncate">{word.word}</span>
                       <span className="text-slate-400 text-sm truncate max-w-24">{word.meaning}</span>
                       <span className="text-amber-400 text-sm font-bold tabular-nums">
                         {(card.studyCount ?? 0).toLocaleString()}回
