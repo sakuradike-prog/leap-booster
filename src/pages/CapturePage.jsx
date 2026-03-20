@@ -65,15 +65,23 @@ function CaptureCanvas() {
   )
 }
 
+const WILD_LABEL = '野生で発見'
+
 export default function CapturePage() {
   const navigate = useNavigate()
   const [leapNumber, setLeapNumber] = useState('')
   const [memo, setMemo] = useState('')
   const [foundWord, setFoundWord] = useState(null)
-  const [alreadyCaptured, setAlreadyCaptured] = useState(false)
+  const [capturedEntry, setCapturedEntry] = useState(null) // null = 未捕獲, object = 捕獲済エントリ
   const [registered, setRegistered] = useState(false)
+  const [savedMemo, setSavedMemo] = useState('')          // 完了画面表示用
   const [searching, setSearching] = useState(false)
   const [streakToast, setStreakToast] = useState(null)
+  // インライン編集
+  const [editingMemo, setEditingMemo] = useState(false)
+  const [editMemoValue, setEditMemoValue] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
+  const editInputRef = useRef(null)
   const { recordStudy } = useUserStats()
 
   // LEAP No. が変わったら単語を検索
@@ -81,7 +89,8 @@ export default function CapturePage() {
     const num = parseInt(leapNumber, 10)
     if (!num || num <= 0) {
       setFoundWord(null)
-      setAlreadyCaptured(false)
+      setCapturedEntry(null)
+      setEditingMemo(false)
       return
     }
     setSearching(true)
@@ -90,36 +99,57 @@ export default function CapturePage() {
       db.captured_words.where('leapNumber').equals(num).first(),
     ]).then(([word, cap]) => {
       setFoundWord(word ?? null)
-      setAlreadyCaptured(!!cap)
+      setCapturedEntry(cap ?? null)
+      setEditingMemo(false)
       setSearching(false)
     }).catch(() => setSearching(false))
   }, [leapNumber])
 
+  // 編集モードに入ったらフォーカス
+  useEffect(() => {
+    if (editingMemo) editInputRef.current?.focus()
+  }, [editingMemo])
+
   async function handleRegister() {
-    if (!foundWord || !memo.trim()) return
+    if (!foundWord) return
+    const finalMemo = memo.trim() || WILD_LABEL
     const existing = await db.captured_words.where('leapNumber').equals(foundWord.leapNumber).first()
     if (existing) {
-      await db.captured_words.update(existing.id, { memo: memo.trim(), capturedAt: new Date() })
+      await db.captured_words.update(existing.id, { memo: finalMemo, capturedAt: new Date() })
     } else {
       await db.captured_words.add({
         leapNumber: foundWord.leapNumber,
         word: foundWord.word,
-        memo: memo.trim(),
+        memo: finalMemo,
         capturedAt: new Date(),
       })
     }
     playCaptureSound()
     const result = await recordStudy()
     if (result.streakUpdated) setStreakToast(result.currentStreak)
+    setSavedMemo(finalMemo)
     setRegistered(true)
+  }
+
+  async function handleSaveEdit() {
+    if (!capturedEntry) return
+    setSavingEdit(true)
+    const newMemo = editMemoValue.trim() || WILD_LABEL
+    await db.captured_words.update(capturedEntry.id, { memo: newMemo })
+    setCapturedEntry({ ...capturedEntry, memo: newMemo })
+    setEditingMemo(false)
+    setSavingEdit(false)
   }
 
   function handleReset() {
     setLeapNumber('')
     setMemo('')
     setFoundWord(null)
-    setAlreadyCaptured(false)
+    setCapturedEntry(null)
     setRegistered(false)
+    setSavedMemo('')
+    setEditingMemo(false)
+    setEditMemoValue('')
   }
 
   if (streakToast !== null) {
@@ -195,7 +225,7 @@ export default function CapturePage() {
             </h2>
             <p style={{ color: '#ffffff', fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{foundWord.word}</p>
             <p style={{ color: '#67e8f9', fontSize: 13, marginBottom: 3 }}>No.{foundWord.leapNumber} {foundWord.leapPart}</p>
-            <p style={{ color: '#475569', fontSize: 13, marginBottom: 36 }}>「{memo}」として登録しました</p>
+            <p style={{ color: '#475569', fontSize: 13, marginBottom: 36 }}>📍 {savedMemo}</p>
           </div>
 
           {/* ボタン */}
@@ -215,7 +245,7 @@ export default function CapturePage() {
     )
   }
 
-  const canRegister = foundWord && memo.trim().length > 0
+  const canRegister = !!foundWord
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col px-5 py-6">
@@ -248,12 +278,12 @@ export default function CapturePage() {
 
       {/* 単語プレビュー */}
       {leapNumber && (
-        <div className="mb-4 px-4 py-3 rounded-xl border-2 min-h-[64px] flex items-center justify-center" style={{
+        <div className="mb-4 px-4 py-3 rounded-xl border-2" style={{
           backgroundColor: foundWord ? 'rgba(6,182,212,0.08)' : 'rgba(100,100,100,0.05)',
           borderColor: foundWord ? 'rgba(6,182,212,0.4)' : 'rgba(100,100,100,0.3)',
         }}>
           {searching ? (
-            <p className="text-slate-500 text-sm">検索中...</p>
+            <p className="text-slate-500 text-sm text-center py-2">検索中...</p>
           ) : foundWord ? (
             <div className="text-center">
               <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -264,23 +294,71 @@ export default function CapturePage() {
                     overflowWrap: 'break-word', wordBreak: 'break-word',
                   }}
                 >{foundWord.word}</p>
-                {alreadyCaptured && (
+                {capturedEntry && (
                   <span className="text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 rounded px-1.5 py-0.5 font-bold">🎯 捕獲済</span>
                 )}
               </div>
               <p className="text-slate-300 text-sm">{foundWord.meaning}</p>
               <p className="text-slate-500 text-xs mt-0.5">{foundWord.leapPart} — {foundWord.partOfSpeech}</p>
+
+              {/* 捕獲済み：場所メモのインライン編集 */}
+              {capturedEntry && (
+                <div className="mt-3 border-t border-cyan-500/20 pt-3">
+                  {editingMemo ? (
+                    <div>
+                      <input
+                        ref={editInputRef}
+                        type="text"
+                        value={editMemoValue}
+                        onChange={e => setEditMemoValue(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit() }}
+                        placeholder={WILD_LABEL}
+                        className="w-full px-3 py-2 bg-slate-700 border-2 border-cyan-500/60 rounded-lg text-white text-sm outline-none"
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={handleSaveEdit}
+                          disabled={savingEdit}
+                          className="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-lg text-sm font-bold transition-colors"
+                        >
+                          {savingEdit ? '保存中…' : '保存する'}
+                        </button>
+                        <button
+                          onClick={() => setEditingMemo(false)}
+                          className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg text-sm transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setEditMemoValue(capturedEntry.memo || WILD_LABEL)
+                        setEditingMemo(true)
+                      }}
+                      className="w-full flex items-center gap-2 text-left active:opacity-60 transition-opacity group"
+                    >
+                      <span className="text-cyan-600 text-xs shrink-0">📍</span>
+                      <span className="flex-1 text-xs text-cyan-400/80 truncate">
+                        {capturedEntry.memo || WILD_LABEL}
+                      </span>
+                      <span className="text-slate-600 text-xs group-active:text-slate-400 shrink-0">✏️ 編集</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
-            <p className="text-slate-500 text-sm">No.{leapNumber} は見つかりません</p>
+            <p className="text-slate-500 text-sm text-center py-2">No.{leapNumber} は見つかりません</p>
           )}
         </div>
       )}
 
-      {/* 備考欄 */}
+      {/* 備考欄（任意） */}
       <div className="mb-6">
         <label className="block text-xs text-slate-400 font-bold mb-1.5 uppercase tracking-wider">
-          捕獲場所メモ
+          捕獲場所メモ <span className="text-slate-600 normal-case font-normal tracking-normal">(任意)</span>
         </label>
         <input
           type="text"
@@ -289,7 +367,9 @@ export default function CapturePage() {
           placeholder="例: 英検1級 2024年度第1回 大問3"
           className="w-full px-4 py-3 bg-slate-800 border-2 border-slate-700 focus:border-cyan-500 rounded-xl text-white text-sm outline-none transition-colors"
         />
-        <p className="text-slate-600 text-xs mt-1.5">教材名・ページ・問題番号などを入力してください</p>
+        <p className="text-slate-600 text-xs mt-1.5">
+          空欄の場合は「{WILD_LABEL}」として登録されます
+        </p>
       </div>
 
       {/* 登録ボタン */}
@@ -298,12 +378,12 @@ export default function CapturePage() {
         disabled={!canRegister}
         className="w-full py-5 text-xl font-bold bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-2xl transition-colors"
       >
-        🎯 捕獲する
+        {capturedEntry ? '🔄 再捕獲する' : '🎯 捕獲する'}
       </button>
 
-      {!canRegister && (
+      {!canRegister && leapNumber && !searching && (
         <p className="text-center text-slate-600 text-xs mt-3">
-          No.と捕獲場所メモの両方を入力してください
+          有効な No. を入力してください
         </p>
       )}
     </div>
