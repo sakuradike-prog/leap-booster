@@ -233,6 +233,7 @@ export default function WordDetailScreen({ word, onBack, sessionWords = null, in
             <WordCard
               word={currentWord}
               textClassName="text-5xl font-black tracking-tight"
+              isCaptured={!!capturedEntry}
             />
           </div>
           {currentWord.meaning && (

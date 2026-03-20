@@ -256,10 +256,16 @@ export default function CapturePage() {
             <p className="text-slate-500 text-sm">検索中...</p>
           ) : foundWord ? (
             <div className="text-center">
-              <div className="flex items-center justify-center gap-2">
-                <p className="text-white text-2xl font-black">{foundWord.word}</p>
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                <p className="text-white font-black"
+                  style={{
+                    fontSize: foundWord.word.length <= 10 ? '1.5rem'
+                      : foundWord.word.length <= 15 ? '1.25rem' : '1rem',
+                    overflowWrap: 'break-word', wordBreak: 'break-word',
+                  }}
+                >{foundWord.word}</p>
                 {alreadyCaptured && (
-                  <span className="text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 rounded px-1.5 py-0.5">捕獲済</span>
+                  <span className="text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 rounded px-1.5 py-0.5 font-bold">🎯 捕獲済</span>
                 )}
               </div>
               <p className="text-slate-300 text-sm">{foundWord.meaning}</p>

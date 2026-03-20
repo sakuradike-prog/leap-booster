@@ -9,6 +9,7 @@ import WordDetailScreen from '../components/WordDetailScreen'
 import { useUserStats } from '../hooks/useUserStats'
 import StreakToast from '../components/StreakToast'
 import SessionCompleteOverlay from '../components/SessionCompleteOverlay'
+import WordBadges from '../components/WordBadges'
 
 const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const QUESTIONS = 10
@@ -225,12 +226,24 @@ function QuizScreen({ questions, onFinish, onHome }) {
 
       {/* 単語カード（タップで再読み上げ） */}
       <div
-        className="w-full max-w-sm bg-slate-800 rounded-2xl p-8 text-center mb-6 active:opacity-70 transition-opacity"
+        className="w-full max-w-sm bg-slate-800 rounded-2xl px-6 py-6 text-center mb-6 active:opacity-70 transition-opacity"
         onClick={() => speak(q.word.word, 'en-US', 0.85)}
       >
         <div className="text-slate-500 text-sm mb-1">{q.word.leapPart} No.{q.word.leapNumber}</div>
-        <div className="text-5xl font-black mb-2">{q.word.word}</div>
-        <div className="text-slate-500 text-sm">{q.word.partOfSpeech}</div>
+        <div
+          className="font-black tracking-tight mb-1 leading-tight"
+          style={{
+            fontSize: q.word.word.length <= 10 ? '3rem'
+              : q.word.word.length <= 13 ? '2.25rem'
+              : q.word.word.length <= 17 ? '1.75rem' : '1.375rem',
+            overflowWrap: 'break-word',
+            wordBreak: 'break-word',
+          }}
+        >
+          {q.word.word}
+        </div>
+        <WordBadges isCaptured={q.isCaptured} />
+        <div className="text-slate-500 text-sm mt-1">{q.word.partOfSpeech}</div>
       </div>
 
       {!choicesVisible ? (
@@ -360,12 +373,15 @@ export default function DailyQuiz() {
     const pool = shuffle(allWords).slice(0, QUESTIONS)
     const allMeanings = allWords.map(w => w.meaning)
 
+    const capturedEntries = await db.captured_words.toArray()
+    const capturedNums = new Set(capturedEntries.map(c => c.leapNumber))
+
     const qs = pool.map(word => {
       const wrongs = shuffle(allMeanings.filter(m => m !== word.meaning)).slice(0, 3)
       const correctIdx = Math.floor(Math.random() * 4)
       const choices = [...wrongs]
       choices.splice(correctIdx, 0, word.meaning)
-      return { word, choices, correctIdx }
+      return { word, choices, correctIdx, isCaptured: capturedNums.has(word.leapNumber) }
     })
 
     setSelectedParts(parts)
