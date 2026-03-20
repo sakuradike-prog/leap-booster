@@ -326,8 +326,10 @@ function QuizScreen({ questions, onFinish, onHome, maskMode }) {
           } : {
             fontSize: q.word.word.length <= 10 ? '3rem'
               : q.word.word.length <= 13 ? '2.25rem'
-              : q.word.word.length <= 17 ? '1.75rem' : '1.375rem',
-            overflowWrap: 'break-word',
+              : q.word.word.length <= 17 ? '1.75rem'
+              : q.word.word.length <= 21 ? '1.375rem' : '1.125rem',
+            maxWidth: '100%',
+            overflowWrap: 'anywhere',
             wordBreak: 'break-word',
           }}
         >
