@@ -2,11 +2,31 @@ import { db } from '../db/database'
 
 const VALID_PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 
+// ダブルクォートで囲まれたフィールド内のカンマを正しく処理するCSVパーサー
+function splitCSVRow(line) {
+  const cols = []
+  let cur = ''
+  let inQuote = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') {
+      if (inQuote && line[i + 1] === '"') { cur += '"'; i++ }
+      else inQuote = !inQuote
+    } else if (ch === ',' && !inQuote) {
+      cols.push(cur); cur = ''
+    } else {
+      cur += ch
+    }
+  }
+  cols.push(cur)
+  return cols
+}
+
 function parseCSV(text) {
   const lines = text.trim().split('\n').map(l => l.replace(/\r$/, ''))
   if (lines.length < 2) throw new Error('データが空です')
 
-  const header = lines[0].split(',')
+  const header = splitCSVRow(lines[0])
   const required = ['word', 'meaning', 'partOfSpeech', 'leapPart', 'leapNumber']
   for (const col of required) {
     if (!header.includes(col)) throw new Error(`ヘッダーに "${col}" がありません`)
@@ -17,7 +37,7 @@ function parseCSV(text) {
 
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue
-    const cols = lines[i].split(',')
+    const cols = splitCSVRow(lines[i])
 
     const leapPart = cols[idx('leapPart')]?.trim()
     if (!VALID_PARTS.includes(leapPart)) continue

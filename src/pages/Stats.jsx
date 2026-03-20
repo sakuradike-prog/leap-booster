@@ -27,7 +27,7 @@ function computeBadges(stats, challengeHistory) {
   const partsCleared = new Set(cleared.flatMap(h => h.parts ?? []))
   return {
     point:     POINT_BADGES.map(b => ({ ...b, earned: stats.totalPoints >= b.threshold })),
-    streak:    STREAK_BADGES.map(b => ({ ...b, earned: stats.currentStreak >= b.threshold })),
+    streak:    STREAK_BADGES.map(b => ({ ...b, earned: (stats.longestStreak ?? stats.currentStreak ?? 0) >= b.threshold })),
     challenge: [
       { id: 'part1',   label: 'Part1 Cleared',      emoji: '📗', desc: 'Part1でクリア',       earned: partsCleared.has('Part1') },
       { id: 'full',    label: 'Full LEAP Cleared',   emoji: '📚', desc: 'Part4を含むクリア',   earned: partsCleared.has('Part4') },
@@ -86,20 +86,21 @@ export default function Stats() {
   const [studyRanking, setStudyRanking]         = useState([])
   const [badgeWords, setBadgeWords]             = useState([])
   const [loading, setLoading]                   = useState(true)
-  const [selectedWord, setSelectedWord]         = useState(null)
+  // { word, sessionWords, sessionIndex } | null
+  const [wordContext, setWordContext]           = useState(null)
   const scrollPosRef = useRef(0)
 
   // 単語詳細から戻ったときにスクロール位置を復元
   useEffect(() => {
-    if (selectedWord === null && scrollPosRef.current > 0) {
+    if (wordContext === null && scrollPosRef.current > 0) {
       const pos = scrollPosRef.current
       requestAnimationFrame(() => window.scrollTo(0, pos))
     }
-  }, [selectedWord])
+  }, [wordContext])
 
-  function handleSelectWord(word) {
+  function handleSelectWord(word, sessionWords, sessionIndex) {
     scrollPosRef.current = window.scrollY
-    setSelectedWord(word)
+    setWordContext({ word, sessionWords, sessionIndex })
   }
 
   useEffect(() => {
@@ -199,8 +200,15 @@ export default function Stats() {
 
   const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
 
-  if (selectedWord) {
-    return <WordDetailScreen word={selectedWord} onBack={() => setSelectedWord(null)} />
+  if (wordContext) {
+    return (
+      <WordDetailScreen
+        word={wordContext.word}
+        onBack={() => setWordContext(null)}
+        sessionWords={wordContext.sessionWords}
+        initialIndex={wordContext.sessionIndex}
+      />
+    )
   }
 
   return (
@@ -217,7 +225,7 @@ export default function Stats() {
         {/* ストリーク・ポイント */}
         {!statsLoading && (
           <div className="flex justify-around mb-8 p-5 bg-slate-800 rounded-2xl">
-            <StreakBadge streak={stats.currentStreak} />
+            <StreakBadge streak={stats.currentStreak} freezeCount={stats.freezeCount ?? 0} />
             <div className="w-px bg-slate-700" />
             <PointDisplay points={stats.totalPoints} clearCount={stats.challengeClearCount} />
           </div>
@@ -286,7 +294,11 @@ export default function Stats() {
               ) : (
                 <div className="flex flex-col gap-2">
                   {weakWords.map(({ card, word }, i) => (
-                    <div key={word.id} className="flex items-center gap-3 bg-slate-800 rounded-xl px-4 py-3">
+                    <button
+                      key={word.id}
+                      onClick={() => handleSelectWord(word, weakWords.map(e => e.word), i)}
+                      className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-4 py-3 text-left active:scale-95 transition-all"
+                    >
                       <span className="text-slate-600 text-sm w-5 text-right">{i + 1}</span>
                       <div className="flex-1">
                         <WordCard word={word} textClassName="font-bold text-white" />
@@ -295,7 +307,7 @@ export default function Stats() {
                       <span className="text-red-400 text-sm font-bold tabular-nums">
                         ×{card.incorrectCount}
                       </span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -311,7 +323,7 @@ export default function Stats() {
                   {studyRanking.map(({ card, word }, i) => (
                     <button
                       key={word.id}
-                      onClick={() => handleSelectWord(word)}
+                      onClick={() => handleSelectWord(word, studyRanking.map(e => e.word), i)}
                       className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-4 py-3 text-left active:scale-95 transition-all"
                     >
                       <span className="text-slate-600 text-sm w-5 text-right">{i + 1}</span>
@@ -335,10 +347,10 @@ export default function Stats() {
                 <p className="text-slate-600 text-sm">100回出会った単語がここに表示されます</p>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {badgeWords.map(({ card, word }) => (
+                  {badgeWords.map(({ card, word }, i) => (
                     <button
                       key={word.id}
-                      onClick={() => handleSelectWord(word)}
+                      onClick={() => handleSelectWord(word, badgeWords.map(e => e.word), i)}
                       className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-4 py-3 text-left active:scale-95 transition-all"
                     >
                       <img src="/badge.png" alt="badge" style={{ width: 24, height: 24, flexShrink: 0 }} />

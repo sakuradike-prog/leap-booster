@@ -30,3 +30,8 @@ db.version(4).stores({
   // スキーマ変更なし: 既存データは studyCount=undefined → ?? 0 で扱う
   cards: '++id, wordId, lastReviewed',
 })
+
+db.version(5).stores({
+  // 捕獲単語テーブル（LEAP以外で見かけた単語を登録）
+  captured_words: '++id, leapNumber, word, capturedAt',
+})

@@ -17,7 +17,7 @@ export default function StudyHistory() {
   const navigate = useNavigate()
   const [groups, setGroups] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selectedWord, setSelectedWord] = useState(null)
+  const [wordContext, setWordContext] = useState(null) // { word, sessionWords, sessionIndex }
 
   useEffect(() => {
     async function load() {
@@ -57,8 +57,15 @@ export default function StudyHistory() {
     load()
   }, [])
 
-  if (selectedWord) {
-    return <WordDetailScreen word={selectedWord} onBack={() => setSelectedWord(null)} />
+  if (wordContext) {
+    return (
+      <WordDetailScreen
+        word={wordContext.word}
+        onBack={() => setWordContext(null)}
+        sessionWords={wordContext.sessionWords}
+        initialIndex={wordContext.sessionIndex}
+      />
+    )
   }
 
   return (
@@ -81,10 +88,10 @@ export default function StudyHistory() {
               <div key={dateKey}>
                 <p className="text-slate-400 text-sm font-bold mb-2">{dateLabel}</p>
                 <div className="flex flex-col gap-1">
-                  {words.map(word => (
+                  {words.map((word, i) => (
                     <button
                       key={word.id}
-                      onClick={() => setSelectedWord(word)}
+                      onClick={() => setWordContext({ word, sessionWords: words, sessionIndex: i })}
                       className="w-full text-left px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-3 active:scale-95 transition-all"
                     >
                       <span className="text-white font-bold flex-1">{word.word}</span>

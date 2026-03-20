@@ -4,36 +4,21 @@ import { db } from '../db/database'
 import { useUserStats } from '../hooks/useUserStats'
 import { findRoots } from '../utils/findRoots'
 import { speak } from '../utils/speak'
+import { playCorrect, playWrong } from '../utils/sound'
 import WordCard from '../components/WordCard'
+import WordDetailScreen from '../components/WordDetailScreen'
+import StreakToast from '../components/StreakToast'
+import { playChallengeClrSound } from '../utils/celebrationSounds'
 
 const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const GOAL = 30
 const DEFAULT_TIMER_SECS = 7
 const CM_DURATION = 3500 // ms per word in CM break
 
-// ---- ヘルパー関数 ----
-function getTimerSecs() {
-  const stored = localStorage.getItem('challengeTimerSecs')
-  const parsed = parseInt(stored, 10)
-  return (!isNaN(parsed) && parsed >= 3 && parsed <= 15) ? parsed : DEFAULT_TIMER_SECS
-}
-
-function getLastParts() {
-  try {
-    const stored = localStorage.getItem('challengeLastParts')
-    if (!stored) return ['Part1']
-    const parts = JSON.parse(stored)
-    if (Array.isArray(parts) && parts.length > 0 && parts.every(p => PARTS.includes(p))) {
-      return parts
-    }
-  } catch { /* ignore */ }
-  return ['Part1']
-}
-
-function saveLastParts(parts) {
-  try {
-    localStorage.setItem('challengeLastParts', JSON.stringify(parts))
-  } catch { /* ignore */ }
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
 }
 
 function formatElapsed(ms) {
@@ -150,77 +135,76 @@ function WordFamilySection({ word }) {
   )
 }
 
-// ---- パート選択画面 ----
-function PartSelect({ onStart, timerSecs }) {
-  const [selected, setSelected] = useState(getLastParts)
-  const [wordCounts, setWordCounts] = useState({})
+// ---- デイリーチャレンジ開始画面 ----
+function DailyStartScreen({ onStart, timerSecs, alreadyDone }) {
+  const [includeAlpha, setIncludeAlpha] = useState(false)
   const navigate = useNavigate()
-
-  useEffect(() => {
-    const fetchCounts = async () => {
-      const counts = {}
-      for (const p of PARTS) {
-        counts[p] = await db.words.where('leapPart').equals(p).count()
-      }
-      setWordCounts(counts)
-    }
-    fetchCounts()
-  }, [])
-
-  function toggle(part) {
-    setSelected(prev =>
-      prev.includes(part) ? prev.filter(p => p !== part) : [...prev, part]
-    )
-  }
-
-  const totalWords = PARTS
-    .filter(p => selected.includes(p))
-    .reduce((s, p) => s + (wordCounts[p] ?? 0), 0)
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center px-4 py-8">
-      <h1 className="text-2xl font-bold mb-2">📖 30問チャレンジ</h1>
-      <p className="text-slate-400 mb-2">出題するパートを選んでください</p>
-      <p className="text-slate-500 text-sm mb-8">⏱ 1問 {timerSecs} 秒・時間切れで終了</p>
+      <button
+        onClick={() => navigate('/')}
+        className="self-start text-slate-400 hover:text-white mb-6 text-sm"
+      >
+        ← 戻る
+      </button>
 
-      <div className="w-full max-w-sm flex flex-col gap-3 mb-8">
-        {PARTS.map(part => (
-          <button
-            key={part}
-            onClick={() => toggle(part)}
-            className={`flex items-center justify-between w-full py-4 px-5 rounded-xl text-lg font-bold border-2 transition-all ${
-              selected.includes(part)
-                ? 'bg-blue-600 border-blue-400 text-white'
-                : 'bg-slate-800 border-slate-600 text-slate-400'
-            }`}
-          >
-            <span>{part}</span>
-            <span className="text-sm font-normal">
-              {wordCounts[part] !== undefined ? `${wordCounts[part]}語` : '…'}
-            </span>
-          </button>
-        ))}
+      <h1 className="text-2xl font-bold mb-1">📖 30問チャレンジ</h1>
+      <p className="text-slate-400 text-sm mb-1">1日1回・ノーミス30問クリア</p>
+      <p className="text-slate-500 text-sm mb-6">⏱ 1問 {timerSecs} 秒・時間切れで終了</p>
+
+      {alreadyDone && (
+        <div className="w-full max-w-sm mb-5 px-4 py-3 bg-amber-900/30 border border-amber-700 rounded-xl text-amber-300 text-sm text-center">
+          今日はすでにクリア済みです。明日また挑戦しよう！
+        </div>
+      )}
+
+      {/* αチェックボックス */}
+      <div className="w-full max-w-sm mb-5">
+        <label className={`flex items-center gap-3 px-4 py-4 bg-slate-800 border-2 rounded-xl cursor-pointer transition-all ${
+          includeAlpha ? 'border-purple-500 bg-purple-900/20' : 'border-slate-600'
+        } ${alreadyDone ? 'opacity-50 cursor-not-allowed' : ''}`}>
+          <input
+            type="checkbox"
+            checked={includeAlpha}
+            onChange={e => !alreadyDone && setIncludeAlpha(e.target.checked)}
+            className="w-5 h-5 accent-purple-500"
+            disabled={alreadyDone}
+          />
+          <div>
+            <div className="font-bold text-base text-white">α（2300語）を含める</div>
+            <div className="text-xs text-slate-400 mt-0.5">
+              {includeAlpha ? 'Part1〜4 + α（2300語）から出題' : 'Part1〜4のみ（1600語）から出題'}
+            </div>
+          </div>
+        </label>
       </div>
 
-      <p className="text-slate-400 mb-6">
-        {totalWords === 0
-          ? '⚠️ 単語データがありません。設定からインポートしてください。'
-          : `合計 ${totalWords} 語から ${Math.min(totalWords, GOAL)} 問出題`}
-      </p>
+      {/* ポイント説明 */}
+      <div className="w-full max-w-sm bg-slate-800 rounded-xl px-4 py-4 mb-6 text-sm">
+        <div className="text-slate-400 font-bold mb-3">ポイント計算</div>
+        <div className="flex justify-between mb-1">
+          <span className="text-slate-300">通常単語 1問正解</span>
+          <span className="text-blue-400 font-bold">+1pt</span>
+        </div>
+        <div className="flex justify-between mb-1">
+          <span className="text-slate-300">捕獲済み単語 1問正解</span>
+          <span className="text-cyan-400 font-bold">+2pt</span>
+        </div>
+        {includeAlpha && (
+          <div className="flex justify-between mb-1">
+            <span className="text-slate-300">αあり 全問クリアボーナス</span>
+            <span className="text-purple-400 font-bold">+15pt</span>
+          </div>
+        )}
+      </div>
 
       <button
-        onClick={() => onStart(selected)}
-        disabled={selected.length === 0 || totalWords === 0}
+        onClick={() => onStart(includeAlpha)}
+        disabled={alreadyDone}
         className="w-full max-w-sm py-5 text-xl font-bold bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-2xl transition-colors"
       >
         スタート
-      </button>
-
-      <button
-        onClick={() => navigate('/')}
-        className="w-full max-w-sm py-4 text-slate-500 hover:text-slate-300 text-base transition-colors"
-      >
-        ← ホームに戻る
       </button>
     </div>
   )
@@ -228,21 +212,23 @@ function PartSelect({ onStart, timerSecs }) {
 
 // ---- CMブレイク ----
 // props:
-//   words       - 直前10問の単語配列
-//   timings     - [{word, timeRemaining}] 各問のわかる押下時の残り秒数
-//   blockNumber - 1(10問後) or 2(20問後)
-//   timerSecs   - タイマー設定値（参考用）
-//   onContinue  - 次のブロックへ進む
-//   onHonestEnd - 正直終了(word) を渡す
-function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
+//   words         - 直前10問の単語配列
+//   timings       - [{word, timeRemaining}] 各問のわかる押下時の残り秒数
+//   blockNumber   - 1(10問後) or 2(20問後) or 3(クリア後レビュー)
+//   onContinue    - 次のブロックへ進む
+//   onHonestEnd   - (未使用・後方互換のため残す)
+//   continueLabel - 続行ボタンのラベル（省略時はデフォルト）
+function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd, continueLabel }) {
   // phase: 'intro' → 'slideshow' → 'choice'
   const [phase, setPhase] = useState('intro')
+  const navigate = useNavigate()
   const [introOpacity, setIntroOpacity] = useState(1)
   const [idx, setIdx] = useState(0)
   const [familyData, setFamilyData] = useState(null)
   const [familyWords, setFamilyWords] = useState([])  // 同語族の単語リスト
   const [allRoots, setAllRoots] = useState([])
   const [rootsHint, setRootsHint] = useState([])
+  const [selectedWord, setSelectedWord] = useState(null)
 
   // 語源データをDB から一括取得（マウント時1回）
   useEffect(() => {
@@ -274,43 +260,8 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [phase])
 
-  // ---- スライドショー: 語族取得 + 語源マッチング + 同語族単語取得 ----
-  useEffect(() => {
-    if (phase !== 'slideshow') return
-    setFamilyData(null)
-    setFamilyWords([])
-    setRootsHint([])
-    if (word?.familyId) {
-      db.wordFamilies.get(word.familyId)
-        .then(fam => { if (fam) setFamilyData(fam) })
-        .catch(() => {})
-      // 同語族の単語を取得（自分以外・重複除去・最大8件）
-      db.words.where('familyId').equals(word.familyId).toArray()
-        .then(ws => {
-          const seen = new Set()
-          const unique = ws.filter(w => {
-            if (w.id === word.id) return false
-            if (seen.has(w.word)) return false
-            seen.add(w.word)
-            return true
-          })
-          setFamilyWords(unique.slice(0, 8))
-        })
-        .catch(() => {})
-    }
-    if (allRoots.length > 0) {
-      setRootsHint(findRoots(word.word, allRoots))
-    }
-  }, [idx, phase, allRoots]) // eslint-disable-line
-
-  // ---- スライドショー: 単語表示時に自動読み上げ（自動進行なし） ----
-  useEffect(() => {
-    if (phase !== 'slideshow') return
-    speak(word.word, 'en-US', 0.85)
-    return () => {
-      try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
-    }
-  }, [idx, phase]) // eslint-disable-line
+  // ※スライドショーフェーズは WordDetailScreen に委譲したため、
+  //   語族・語源・読み上げの useEffect はここでは不要（二重実行防止）
 
   function handleAdvance() {
     if (phase !== 'slideshow') return
@@ -385,15 +336,15 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
             onClick={onContinue}
             className="w-full py-4 px-5 text-base font-bold bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors text-left"
           >
-            ▶️ {nextQuestionNum}問目に進む
+            ▶️ {continueLabel ?? `${nextQuestionNum}問目に進む`}
           </button>
 
-          {/* 正直終了 */}
+          {/* 終了してホームへ */}
           <button
-            onClick={() => onHonestEnd(suspiciousWord)}
-            className="w-full py-4 px-5 text-base font-bold bg-slate-800 hover:bg-red-900/40 border border-slate-700 hover:border-red-700/60 rounded-xl transition-colors text-left text-slate-400 hover:text-slate-200"
+            onClick={() => navigate('/')}
+            className="w-full py-4 px-5 text-base font-bold bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors text-left text-slate-400 hover:text-slate-200"
           >
-            🙏 やっぱり間違ってたので正直に終了
+            🏠 終了してホームへ
           </button>
         </div>
 
@@ -408,125 +359,61 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd }) {
     )
   }
 
-  // ---- スライドショー画面 ----
+  // ---- スライドショー → 共通 WordDetailScreen ----
+  // 「終了する」で choice 画面へ遷移
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col px-5 py-6 select-none overflow-y-auto">
-      <style>{CM_STYLE}</style>
-
-      {/* ヘッダー */}
-      <div className="flex items-center justify-between mb-6">
-        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">📺 CM Break</p>
-        <p className="text-slate-600 text-xs tabular-nums">{idx + 1} / {words.length}</p>
-      </div>
-
-      {/* 単語情報 */}
-      <div className="text-center mb-5">
-        <p className="text-slate-500 text-base font-bold mb-2">
-          No.{word.leapNumber} &nbsp;<span className="text-slate-600">{word.leapPart}</span>
-        </p>
-        <div className="flex justify-center mb-4">
-          <WordCard word={word} textClassName="text-6xl font-black leading-tight tracking-tight" />
-        </div>
-        <p className="text-2xl text-slate-200 font-medium mb-1">{word.meaning}</p>
-        {word.partOfSpeech && (
-          <p className="text-slate-600 text-sm">{word.partOfSpeech}</p>
-        )}
-      </div>
-
-      {/* 語源ヒント */}
-      {rootsHint.length > 0 && (
-        <div className="px-4 py-3 bg-purple-900/30 border border-purple-800/50 rounded-xl text-purple-300 text-sm mb-3 w-full text-center">
-          🔤 語源:{' '}
-          {rootsHint.map((r, i) => (
-            <span key={r.root}>
-              {i > 0 && <span className="text-purple-600 mx-1">+</span>}
-              <span className="font-bold">{r.root}</span>
-              <span className="text-purple-400"> ({r.meaning})</span>
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* 語族ヒント + 同語族の単語 */}
-      {familyData && (
-        <div className="px-4 py-3 bg-blue-900/30 border border-blue-800/50 rounded-xl text-blue-300 text-sm mb-3 w-full">
-          <p className="text-center mb-2">
-            🧬 語族: <span className="font-bold">[{familyData.root}]</span>
-            {familyData.rootMeaning && <span className="text-blue-400"> — {familyData.rootMeaning}</span>}
-          </p>
-          {familyWords.length > 0 && (
-            <div className="flex flex-wrap gap-2 justify-center pt-1 border-t border-blue-800/40">
-              {familyWords.map(fw => (
-                <span key={fw.id} className="text-xs bg-blue-900/50 rounded-lg px-2 py-1">
-                  <span className="font-bold text-blue-200">{fw.word}</span>
-                  <span className="text-blue-500 ml-1">{fw.partOfSpeech}</span>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ボタン群 */}
-      <div className="mt-auto pt-5 flex flex-col gap-3">
-        {/* もう一度発音 */}
-        <button
-          onClick={() => speak(word.word, 'en-US', 0.75)}
-          className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-300 text-sm font-bold transition-colors active:scale-95"
-        >
-          🔊 もう一度発音
-        </button>
-
-        {/* 次の単語へ */}
-        <button
-          onClick={handleAdvance}
-          className="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-xl text-white text-base font-bold transition-colors active:scale-95"
-        >
-          次の単語へ →
-        </button>
-
-        {/* スキップ（終了メニューへ） */}
-        <button
-          onClick={() => {
-            try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
-            setPhase('choice')
-          }}
-          className="w-full py-3 bg-transparent border border-slate-800 rounded-xl text-slate-600 hover:text-slate-400 hover:border-slate-600 text-sm transition-colors"
-        >
-          スキップして終了メニューへ
-        </button>
-      </div>
-    </div>
+    <WordDetailScreen
+      word={words[0]}
+      sessionWords={words}
+      initialIndex={0}
+      backLabel="終了する"
+      backAsLink={true}
+      onBack={() => {
+        try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
+        setPhase('choice')
+      }}
+    />
   )
 }
 
-// ---- 出題画面 ----
+// ---- 出題画面（2段階4択制） ----
+// words は {word, choices, correctIdx}[] の配列
 function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
   const [current, setCurrent] = useState(0)
   const [streak, setStreak] = useState(0)
   const [flipping, setFlipping] = useState(false)
   const [timeLeft, setTimeLeft] = useState(timerSecs)
-  // CMブレイク用: null or {words, timings, blockNumber}
+  const [choicesVisible, setChoicesVisible] = useState(false) // 2段階制
+  const [selectedChoice, setSelectedChoice] = useState(null)
+  const [revealed, setRevealed] = useState(false)
   const [cmData, setCMData] = useState(null)
   const navigate = useNavigate()
 
   const doneRef = useRef(false)
-  // 今のブロックで各問のわかる押下時の残り秒数を記録
   const blockTimingsRef = useRef([])
+  const capturedTimeLeftRef = useRef(timerSecs)
+  const choicesRef = useRef(null)
 
-  const word = words[current]
+  const question = words[current]
+  const word = question?.word
 
   const counterColor =
     streak >= 28 ? 'text-red-400' :
     streak >= 20 ? 'text-amber-400' :
     'text-blue-400'
-
   const urgentTimer = timeLeft <= 3
+
+  // 問題が変わるたびにリセット
+  useEffect(() => {
+    setChoicesVisible(false)
+    setSelectedChoice(null)
+    setRevealed(false)
+    capturedTimeLeftRef.current = timerSecs
+  }, [current, timerSecs])
 
   // タイマー（CMブレイク中は停止）
   useEffect(() => {
     if (cmData) return
-
     doneRef.current = false
     setTimeLeft(timerSecs)
 
@@ -547,7 +434,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
     return () => clearInterval(timerId)
   }, [current, cmData]) // eslint-disable-line
 
-  // 問題表示時に単語を読み上げ（CMブレイク中は除く）
+  // 問題表示時に単語を読み上げ
   useEffect(() => {
     if (cmData) return
     if (word?.word) speak(word.word, 'en-US', 0.85)
@@ -566,67 +453,86 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
       })
     } else {
       await db.cards.add({
-        wordId: word.id,
-        lastReviewed: new Date(),
-        correctCount: 0,
-        incorrectCount: 1,
-        studyCount: 1,
+        wordId: word.id, lastReviewed: new Date(),
+        correctCount: 0, incorrectCount: 1, studyCount: 1,
       })
     }
     onTimeout(word, streak)
   }
 
-  async function handleKnow() {
+  // Stage 1：「4択を表示」タップ
+  function handleReveal() {
     if (doneRef.current) return
-    doneRef.current = true
-
-    // わかるを押した瞬間の残り秒数を記録（一番遅かった単語の特定に使用）
-    const capturedTimeLeft = timeLeft
-
-    const existing = await db.cards.where('wordId').equals(word.id).first()
-    if (existing) {
-      await db.cards.update(existing.id, {
-        correctCount: (existing.correctCount ?? 0) + 1,
-        studyCount: (existing.studyCount ?? 0) + 1,
-        lastReviewed: new Date(),
-      })
-    } else {
-      await db.cards.add({
-        wordId: word.id,
-        lastReviewed: new Date(),
-        correctCount: 1,
-        incorrectCount: 0,
-        studyCount: 1,
-      })
-    }
-
-    const next = streak + 1
-
-    // タイミングを記録
-    blockTimingsRef.current.push({ word: words[current], timeRemaining: capturedTimeLeft })
-
-    if (next >= GOAL) {
-      onClear()
-      return
-    }
-
-    setFlipping(true)
+    capturedTimeLeftRef.current = timeLeft
+    setChoicesVisible(true)
+    // 選択肢Dが画面外に出ないよう少し遅延してスクロール
     setTimeout(() => {
-      setStreak(next)
-      setCurrent(prev => (prev + 1) % words.length)
-      setFlipping(false)
-
-      // 10問目・20問目でCMブレイク突入
-      if (next === 10 || next === 20) {
-        const lastTen = words.slice(next - 10, next)
-        const timings = [...blockTimingsRef.current]
-        blockTimingsRef.current = [] // 次のブロック用にリセット
-        setCMData({ words: lastTen, timings, blockNumber: next / 10 })
-      }
-    }, 180)
+      choicesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }, 60)
   }
 
-  // CMブレイク中の表示
+  // Stage 2：選択肢タップ
+  async function handleAnswer(choiceIdx) {
+    if (doneRef.current || revealed) return
+    doneRef.current = true
+    setSelectedChoice(choiceIdx)
+    setRevealed(true)
+
+    const isCorrect = choiceIdx === question.correctIdx
+
+    // 押した瞬間に音を鳴らす
+    if (isCorrect) {
+      playCorrect()
+    } else {
+      playWrong()
+    }
+
+    if (isCorrect) {
+      const existing = await db.cards.where('wordId').equals(word.id).first()
+      if (existing) {
+        await db.cards.update(existing.id, {
+          correctCount: (existing.correctCount ?? 0) + 1,
+          studyCount: (existing.studyCount ?? 0) + 1,
+          lastReviewed: new Date(),
+        })
+      } else {
+        await db.cards.add({
+          wordId: word.id, lastReviewed: new Date(),
+          correctCount: 1, incorrectCount: 0, studyCount: 1,
+        })
+      }
+
+      const next = streak + 1
+      blockTimingsRef.current.push({ word, timeRemaining: capturedTimeLeftRef.current })
+
+      if (next >= GOAL) {
+        const lastWords   = blockTimingsRef.current.map(t => t.word)
+        const lastTimings = [...blockTimingsRef.current]
+        setTimeout(() => onClear(lastWords, lastTimings), 600)
+        return
+      }
+
+      setTimeout(() => {
+        setStreak(next)
+        setCurrent(prev => (prev + 1) % words.length)
+        setFlipping(false)
+
+        if (next === 10 || next === 20) {
+          const lastTen = words.slice(next - 10, next).map(q => q.word)
+          const timings = [...blockTimingsRef.current]
+          blockTimingsRef.current = []
+          setCMData({ words: lastTen, timings, blockNumber: next / 10 })
+        }
+      }, 700)
+    } else {
+      // 不正解 → 記録してからチャレンジ終了
+      setTimeout(async () => {
+        await handleTimeoutInternal()
+      }, 900)
+    }
+  }
+
+  // CMブレイク中
   if (cmData) {
     return (
       <CMBreak
@@ -664,7 +570,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
       </div>
 
       {/* タイマー */}
-      <div className="w-full max-w-sm mb-5">
+      <div className="w-full max-w-sm mb-4">
         <div className={`text-center text-2xl font-black mb-2 transition-colors ${
           urgentTimer ? 'text-red-400 animate-pulse' : 'text-slate-400'
         }`}>
@@ -681,13 +587,11 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
       </div>
 
       {/* 単語カード */}
-      <div className={`w-full max-w-sm bg-slate-800 rounded-3xl p-8 mb-3 text-center transition-opacity duration-150 ${
+      <div className={`w-full max-w-sm bg-slate-800 rounded-3xl p-6 mb-3 text-center transition-opacity duration-150 ${
         flipping ? 'opacity-0' : 'opacity-100'
       }`}>
-        <div className="text-slate-500 text-sm mb-2">
-          No. {word.leapNumber} ({word.leapPart})
-        </div>
-        <div className="text-5xl font-black tracking-tight mb-3">{word.word}</div>
+        <div className="text-slate-500 text-sm mb-2">No. {word.leapNumber} ({word.leapPart})</div>
+        <div className="text-5xl font-black tracking-tight mb-2">{word.word}</div>
         <div className="text-slate-500 text-sm">{word.partOfSpeech}</div>
       </div>
 
@@ -698,22 +602,49 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
         <WordFamilySection word={word} />
       </div>
 
-      {/* わかるボタン */}
-      <div className="w-full max-w-sm mt-5">
-        <button
-          onClick={handleKnow}
-          className="w-full py-6 text-2xl font-bold bg-blue-600 hover:bg-blue-500 rounded-2xl transition-colors active:scale-95"
-        >
-          ✅ わかる
-        </button>
+      {/* ボタンエリア */}
+      <div ref={choicesRef} className="w-full max-w-sm mt-4 flex flex-col gap-2">
+        {!choicesVisible ? (
+          /* Stage 1 */
+          <>
+            <button
+              onClick={handleReveal}
+              className="w-full py-5 text-xl font-bold bg-slate-700 hover:bg-slate-600 border-2 border-slate-500 rounded-2xl transition-colors active:scale-95"
+            >
+              💡 4択を表示
+            </button>
+            <p className="text-center text-slate-600 text-xs mt-1">頭の中で意味を考えてからタップ</p>
+          </>
+        ) : (
+          /* Stage 2：4択 */
+          question.choices.map((choice, i) => {
+            let cls = 'bg-slate-800 border-slate-700 hover:bg-slate-700 active:scale-95'
+            if (revealed) {
+              if (i === question.correctIdx) cls = 'bg-green-800 border-green-500'
+              else if (i === selectedChoice) cls = 'bg-red-900 border-red-600'
+              else cls = 'bg-slate-800 border-slate-700 opacity-40'
+            }
+            return (
+              <button
+                key={i}
+                onClick={() => handleAnswer(i)}
+                disabled={revealed}
+                className={`w-full py-3 px-4 border-2 rounded-xl text-left transition-all ${cls}`}
+              >
+                <span className="text-slate-400 font-bold text-sm mr-2">{['A', 'B', 'C', 'D'][i]}</span>
+                <span className="text-white font-bold text-base">{choice}</span>
+              </button>
+            )
+          })
+        )}
       </div>
 
       {/* 中断ボタン */}
       <button
         onClick={() => navigate('/')}
-        className="mt-6 text-slate-600 hover:text-slate-400 text-sm transition-colors"
+        className="mt-5 text-slate-600 hover:text-slate-400 text-sm transition-colors"
       >
-        中断してホームへ
+        ホームへ
       </button>
     </div>
   )
@@ -721,17 +652,27 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
 
 // ---- 終了画面（時間切れ・正直終了 共通） ----
 // reason: 'timeout' | 'honest'
-function TimeoutScreen({ word, streak, reason, onRetry, onHome }) {
+function TimeoutScreen({ word, streak, reason, onRetry, onHome, onWordDetail }) {
   const isHonest = reason === 'honest'
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center px-4 text-center">
       <div className="text-5xl mb-4">{isHonest ? '🙏' : '⏰'}</div>
       <p className="text-slate-400 text-xl font-bold mb-1">{word.leapPart} &nbsp;No.{word.leapNumber}</p>
-      <div className="mb-3">
+      <button
+        onClick={onWordDetail}
+        className="mb-3 active:opacity-70 transition-opacity"
+        title="タップして単語詳細を見る"
+      >
         <WordCard word={word} textClassName="text-6xl font-black" />
-      </div>
-      <p className="text-slate-200 text-xl font-medium mb-5">{word.meaning}</p>
+      </button>
+      <p
+        onClick={onWordDetail}
+        className="text-slate-200 text-xl font-medium mb-1 cursor-pointer active:opacity-70"
+      >
+        {word.meaning}
+      </p>
+      <p className="text-slate-500 text-xs mb-4">タップして詳細を見る →</p>
       <p className="text-slate-600 text-sm mb-8">
         {isHonest
           ? `ブロック正解 ${streak} 問で終了`
@@ -762,16 +703,10 @@ function TimeoutScreen({ word, streak, reason, onRetry, onHome }) {
 
       <div className="w-full max-w-sm flex flex-col gap-4">
         <button
-          onClick={onRetry}
-          className="w-full py-5 text-xl font-bold bg-blue-600 hover:bg-blue-500 rounded-2xl transition-colors"
-        >
-          もう一度チャレンジ
-        </button>
-        <button
           onClick={onHome}
           className="w-full py-5 text-xl font-bold bg-slate-700 hover:bg-slate-600 rounded-2xl transition-colors"
         >
-          中断してホームへ
+          ホームへ
         </button>
       </div>
     </div>
@@ -860,91 +795,194 @@ function StarBurst() {
   )
 }
 
-// ---- クリア画面（派手演出） ----
-function ClearScreen({ parts, elapsed, onRetry, onHome }) {
+// ---- クリア画面（ポイント内訳アニメーション） ----
+function ClearScreen({ parts, elapsed, earnedPoints, capturedCount, normalCount, includeAlpha, cmWords, cmTimings, onRetry, onHome }) {
+  const [displayPoints, setDisplayPoints] = useState(0)
+  const [showBreakdown, setShowBreakdown] = useState(false)
   const [showButtons, setShowButtons] = useState(false)
+  const [showCM, setShowCM] = useState(false)
+  const rafRef = useRef(null)
 
   useEffect(() => {
+    if (showCM) return
+    playChallengeClrSound()
     speak('Congratulations! Perfect score!', 'en-US', 0.9)
-    const t = setTimeout(() => setShowButtons(true), 3000)
+
+    // 内訳を先に表示
+    const t1 = setTimeout(() => setShowBreakdown(true), 400)
+    // カウントアップアニメーション (0 → earnedPoints over 1.4s)
+    const t2 = setTimeout(() => {
+      const target = earnedPoints ?? 0
+      const DURATION = 1400
+      const startTime = Date.now()
+      function tick() {
+        const elapsed2 = Date.now() - startTime
+        const progress = Math.min(1, elapsed2 / DURATION)
+        const eased = 1 - Math.pow(1 - progress, 3)
+        setDisplayPoints(Math.round(eased * target))
+        if (progress < 1) {
+          rafRef.current = requestAnimationFrame(tick)
+        }
+      }
+      rafRef.current = requestAnimationFrame(tick)
+    }, 700)
+    const t3 = setTimeout(() => setShowButtons(true), 3800)
+
     return () => {
-      clearTimeout(t)
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3)
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
       try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
     }
-  }, [])
+  }, [showCM]) // eslint-disable-line
 
   const now = new Date()
   const dateStr = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ` +
     `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
+  if (showCM && cmWords && cmWords.length > 0) {
+    return (
+      <CMBreak
+        words={cmWords}
+        timings={cmTimings ?? []}
+        blockNumber={3}
+        onContinue={() => setShowCM(false)}
+        continueLabel="クリア画面に戻る"
+        onHonestEnd={() => setShowCM(false)}
+      />
+    )
+  }
+
+  const normalPts = normalCount ?? 0
+  const capPts = (capturedCount ?? 0) * 2
+  const alphaPts = includeAlpha ? 15 : 0
+  const capCount = capturedCount ?? 0
+  const normCount = normalCount ?? 0
+
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center px-4 text-center overflow-hidden">
-      <style>{CLEAR_STYLE}</style>
+    <div className="min-h-screen text-white flex flex-col items-center justify-center px-4 text-center overflow-hidden"
+      style={{ background: 'linear-gradient(160deg, #0a0a1a 0%, #0f172a 60%, #050510 100%)' }}>
+      <style>{`
+        ${CLEAR_STYLE}
+        @keyframes clrTrophy {
+          0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+          55%  { transform: scale(1.3) rotate(5deg);  opacity: 1; }
+          72%  { transform: scale(0.88) rotate(-3deg); }
+          86%  { transform: scale(1.08) rotate(2deg); }
+          100% { transform: scale(1) rotate(0deg); }
+        }
+        @keyframes clrTitle {
+          from { opacity: 0; transform: translateY(24px) scale(.92); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes clrRow {
+          from { opacity: 0; transform: translateX(-20px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes clrTotal {
+          0%   { transform: scale(0.5); opacity: 0; }
+          60%  { transform: scale(1.15); opacity: 1; }
+          80%  { transform: scale(0.93); }
+          100% { transform: scale(1); }
+        }
+        @keyframes clrGlow {
+          0%,100% { text-shadow: 0 0 20px rgba(251,191,36,.8), 0 0 50px rgba(251,191,36,.4); }
+          50%      { text-shadow: 0 0 40px rgba(251,191,36,1),  0 0 90px rgba(251,191,36,.6); }
+        }
+        @keyframes clrPulseBox {
+          0%,100% { box-shadow: 0 0 0 2px rgba(251,191,36,.4), 0 0 30px rgba(251,191,36,.2); }
+          50%      { box-shadow: 0 0 0 3px rgba(251,191,36,.7), 0 0 60px rgba(251,191,36,.4); }
+        }
+      `}</style>
       <HeavyConfetti />
       <StarBurst />
 
-      <div className="relative z-10 flex flex-col items-center">
-        <div
-          style={{
-            animationName: 'bounce-in',
-            animationDuration: '0.8s',
-            animationFillMode: 'both',
-          }}
-        >
-          <span className="text-9xl select-none">🏆</span>
+      <div className="relative z-10 flex flex-col items-center w-full max-w-sm">
+        {/* トロフィー */}
+        <div style={{ fontSize: 88, lineHeight: 1, animation: 'clrTrophy .65s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+          🏆
         </div>
 
-        <h1
-          className="text-5xl font-black mt-4 mb-3"
-          style={{
-            animationName: 'bounce-in, glow-text',
-            animationDuration: '0.8s, 2.5s',
-            animationDelay: '0.15s, 1s',
-            animationFillMode: 'both, none',
-            animationIterationCount: '1, infinite',
-            color: '#fbbf24',
-          }}
-        >
-          🎉 30問クリア！！！
+        {/* タイトル */}
+        <h1 className="text-4xl font-black mt-3 mb-1"
+          style={{ color: '#fbbf24', animation: 'clrTitle .4s ease-out .25s both, clrGlow 2s ease-in-out 1s infinite' }}>
+          30問クリア！！！
         </h1>
-
-        <p className="text-slate-300 text-lg mb-1">+1ポイント獲得 🎊</p>
-        <p className="text-slate-400 text-sm mb-1">{parts.join(' + ')}</p>
-
+        <p className="text-slate-400 text-sm mb-1">{parts.includes('α') ? 'Part1〜α' : 'Part1〜4'}</p>
         {elapsed != null && (
-          <p className="text-slate-400 text-sm mb-1">
-            ⏱ クリアタイム：
-            <span className="font-bold text-blue-300">{formatElapsed(elapsed)}</span>
+          <p className="text-slate-500 text-xs mb-4">
+            ⏱ {formatElapsed(elapsed)} &nbsp;·&nbsp; {dateStr}
           </p>
         )}
 
-        <p className="text-slate-600 text-xs mb-10">{dateStr}</p>
+        {/* ポイント内訳ボックス */}
+        {showBreakdown && (
+          <div className="w-full rounded-2xl mb-5 overflow-hidden"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(251,191,36,.25)', animation: 'clrPulseBox 2s ease-in-out 1s infinite' }}>
+            {/* 通常単語 */}
+            <div className="flex justify-between items-center px-5 py-3 border-b border-white/5"
+              style={{ animation: 'clrRow .35s ease-out .1s both', opacity: 0 }}>
+              <span className="text-slate-300 text-sm">通常単語 <span className="text-slate-500">{normCount}問 × 1pt</span></span>
+              <span className="font-bold text-white">+{normalPts}pt</span>
+            </div>
+            {/* 捕獲済み */}
+            {capCount > 0 && (
+              <div className="flex justify-between items-center px-5 py-3 border-b border-white/5"
+                style={{ animation: 'clrRow .35s ease-out .25s both', opacity: 0 }}>
+                <div className="text-left">
+                  <div className="text-cyan-300 text-sm">捕獲済み単語 <span className="text-slate-500">{capCount}問 × 2pt</span></div>
+                  <div className="text-xs text-cyan-500/70">🎯 捕獲ボーナス +{capCount}pt！</div>
+                </div>
+                <span className="font-bold text-cyan-300">+{capPts}pt</span>
+              </div>
+            )}
+            {/* αボーナス */}
+            {includeAlpha && (
+              <div className="flex justify-between items-center px-5 py-3 border-b border-white/5"
+                style={{ animation: 'clrRow .35s ease-out .4s both', opacity: 0 }}>
+                <div className="text-left">
+                  <div className="text-purple-300 text-sm">α Part クリアボーナス</div>
+                </div>
+                <span className="font-bold text-purple-300">+{alphaPts}pt</span>
+              </div>
+            )}
+            {/* 合計 */}
+            <div className="flex justify-between items-center px-5 py-4"
+              style={{ background: 'rgba(251,191,36,0.08)' }}>
+              <span className="text-slate-300 font-bold">合計</span>
+              <span className="font-black text-3xl"
+                style={{
+                  fontFamily: "'Bebas Neue', system-ui, sans-serif",
+                  color: '#fbbf24',
+                  animation: 'clrTotal .45s cubic-bezier(0.34,1.56,0.64,1) .65s both',
+                }}>
+                +{displayPoints}pt
+              </span>
+            </div>
+          </div>
+        )}
 
+        {/* ボタン */}
         {showButtons ? (
-          <div
-            className="flex flex-col gap-4 w-full max-w-xs"
-            style={{
-              animationName: 'fade-in-up',
-              animationDuration: '0.5s',
-              animationFillMode: 'both',
-            }}
-          >
-            <button
-              onClick={onRetry}
-              className="w-full py-5 text-xl font-bold bg-blue-600 hover:bg-blue-500 rounded-2xl transition-colors"
-            >
-              もう一度チャレンジ
-            </button>
+          <div className="flex flex-col gap-3 w-full"
+            style={{ animation: 'fade-in-up .4s ease-out both' }}>
+            {cmWords && cmWords.length > 0 && (
+              <button
+                onClick={() => setShowCM(true)}
+                className="w-full py-4 text-lg font-bold bg-amber-600 hover:bg-amber-500 rounded-2xl transition-colors"
+              >
+                📺 CM Breakを見る
+              </button>
+            )}
             <button
               onClick={onHome}
-              className="w-full py-5 text-xl font-bold bg-slate-700 hover:bg-slate-600 rounded-2xl transition-colors"
+              className="w-full py-4 text-lg font-bold bg-slate-700 hover:bg-slate-600 rounded-2xl transition-colors"
             >
               ホームへ
             </button>
           </div>
         ) : (
-          <div className="h-28 flex items-center">
-            <p className="text-slate-600 text-sm animate-pulse">もう少しお待ちください…</p>
+          <div className="h-14 flex items-center">
+            <p className="text-slate-600 text-xs animate-pulse">集計中…</p>
           </div>
         )}
       </div>
@@ -957,47 +995,96 @@ export default function Challenge() {
   const [phase, setPhase] = useState('select')
   const [words, setWords] = useState([])
   const [selectedParts, setSelectedParts] = useState([])
+  const [includeAlpha, setIncludeAlpha] = useState(false)
+  const [alreadyDone, setAlreadyDone] = useState(false)
   const [timeoutWord, setTimeoutWord] = useState(null)
   const [timeoutStreak, setTimeoutStreak] = useState(0)
   const [timeoutReason, setTimeoutReason] = useState('timeout') // 'timeout' | 'honest'
+  const [showTimeoutDetail, setShowTimeoutDetail] = useState(false)
   const [elapsed, setElapsed] = useState(null)
-  const [timerSecs] = useState(getTimerSecs)
+  const [earnedPoints, setEarnedPoints] = useState(0)
+  const [capturedWordCount, setCapturedWordCount] = useState(0)
+  const [normalWordCount, setNormalWordCount] = useState(0)
+  const [clearWords, setClearWords] = useState([])
+  const [clearTimings, setClearTimings] = useState([])
+  const [timerSecs] = useState(DEFAULT_TIMER_SECS)
+  const [streakToast, setStreakToast] = useState(null)
   const startTimeRef = useRef(null)
-  const { recordChallengeClear } = useUserStats()
+  const { recordChallengeClear, recordStudy } = useUserStats()
   const navigate = useNavigate()
 
-  async function handleStart(parts) {
-    saveLastParts(parts)
+  // 今日クリア済みか確認
+  useEffect(() => {
+    db.userStats.get(1).then(s => {
+      if (s?.challengeLastDate && isSameDay(new Date(s.challengeLastDate), new Date())) {
+        setAlreadyDone(true)
+      }
+    })
+  }, [])
 
-    const allWords = await db.words
-      .where('leapPart')
-      .anyOf(parts)
-      .toArray()
+  async function handleStart(incAlpha) {
+    setIncludeAlpha(incAlpha)
+    const parts = incAlpha
+      ? ['Part1', 'Part2', 'Part3', 'Part4', 'α']
+      : ['Part1', 'Part2', 'Part3', 'Part4']
 
+    const allWords = await db.words.where('leapPart').anyOf(parts).toArray()
     if (allWords.length === 0) return
 
     const shuffled = shuffle(allWords)
-    let pool = shuffled
+    let pool = [...shuffled]
     while (pool.length < GOAL) {
       pool = [...pool, ...shuffle(allWords)]
     }
+    pool = pool.slice(0, GOAL)
+
+    const allMeanings = allWords.map(w => w.meaning)
+    const questions = pool.map(word => {
+      const wrongs = shuffle(allMeanings.filter(m => m !== word.meaning)).slice(0, 3)
+      const correctIdx = Math.floor(Math.random() * 4)
+      const choices = [...wrongs]
+      choices.splice(correctIdx, 0, word.meaning)
+      return { word, choices, correctIdx }
+    })
 
     setSelectedParts(parts)
-    setWords(pool)
+    setWords(questions)
     startTimeRef.current = Date.now()
     setPhase('playing')
   }
 
-  async function handleClear() {
+  async function handleClear(lastWords, lastTimings) {
     const ms = startTimeRef.current ? Date.now() - startTimeRef.current : null
     setElapsed(ms)
-    await recordChallengeClear()
+    setClearWords(lastWords ?? [])
+    setClearTimings(lastTimings ?? [])
+
+    // ポイント計算: 捕獲済み単語=2pt, 通常=1pt, αクリアボーナス=+15pt
+    const capturedEntries = await db.captured_words.toArray()
+    const capturedNums = new Set(capturedEntries.map(c => c.leapNumber))
+    let pts = 0
+    let cCount = 0
+    for (const q of words) {
+      if (capturedNums.has(q.word.leapNumber)) {
+        pts += 2
+        cCount++
+      } else {
+        pts += 1
+      }
+    }
+    if (includeAlpha) pts += 15
+
+    setCapturedWordCount(cCount)
+    setNormalWordCount(words.length - cCount)
+    setEarnedPoints(pts)
+    await recordChallengeClear(pts)
     await db.challengeHistory.add({
       date: new Date(),
       parts: selectedParts,
       result: GOAL,
       cleared: true,
     })
+    setAlreadyDone(true)
     setPhase('clear')
   }
 
@@ -1009,6 +1096,8 @@ export default function Challenge() {
       result: streak,
       cleared: false,
     })
+    const studyResult = await recordStudy()
+    if (studyResult.streakUpdated) setStreakToast(studyResult.currentStreak)
     setTimeoutWord(word)
     setTimeoutStreak(streak)
     setTimeoutReason('timeout')
@@ -1030,7 +1119,7 @@ export default function Challenge() {
   }
 
   if (phase === 'select') {
-    return <PartSelect onStart={handleStart} timerSecs={timerSecs} />
+    return <DailyStartScreen onStart={handleStart} timerSecs={timerSecs} alreadyDone={alreadyDone} />
   }
   if (phase === 'playing') {
     return (
@@ -1044,6 +1133,14 @@ export default function Challenge() {
     )
   }
   if (phase === 'timeout') {
+    if (showTimeoutDetail && timeoutWord) {
+      return (
+        <WordDetailScreen
+          word={timeoutWord}
+          onBack={() => setShowTimeoutDetail(false)}
+        />
+      )
+    }
     return (
       <TimeoutScreen
         word={timeoutWord}
@@ -1051,6 +1148,7 @@ export default function Challenge() {
         reason={timeoutReason}
         onRetry={() => setPhase('select')}
         onHome={() => navigate('/')}
+        onWordDetail={() => setShowTimeoutDetail(true)}
       />
     )
   }
@@ -1059,9 +1157,18 @@ export default function Challenge() {
       <ClearScreen
         parts={selectedParts}
         elapsed={elapsed}
+        earnedPoints={earnedPoints}
+        capturedCount={capturedWordCount}
+        normalCount={normalWordCount}
+        includeAlpha={includeAlpha}
+        cmWords={clearWords}
+        cmTimings={clearTimings}
         onRetry={() => setPhase('select')}
         onHome={() => navigate('/')}
       />
     )
+  }
+  if (streakToast !== null) {
+    return <StreakToast streak={streakToast} onDone={() => setStreakToast(null)} />
   }
 }

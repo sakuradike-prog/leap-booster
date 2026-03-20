@@ -7,6 +7,10 @@ import Stats from './pages/Stats'
 import Settings from './pages/Settings'
 import DailyQuiz from './pages/DailyQuiz'
 import StudyHistory from './pages/StudyHistory'
+import HeatmapPage from './pages/HeatmapPage'
+import CapturePage from './pages/CapturePage'
+import StreakInfoPage from './pages/StreakInfoPage'
+import PointsInfoPage from './pages/PointsInfoPage'
 import { db } from './db/database'
 import { importCSVFromUrl } from './utils/importFromCSV'
 import { loadWordFamilies } from './utils/loadWordFamilies'
@@ -74,6 +78,10 @@ function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/daily" element={<DailyQuiz />} />
         <Route path="/study-history" element={<StudyHistory />} />
+        <Route path="/heatmap" element={<HeatmapPage />} />
+        <Route path="/capture" element={<CapturePage />} />
+        <Route path="/streak-info" element={<StreakInfoPage />} />
+        <Route path="/points-info" element={<PointsInfoPage />} />
       </Routes>
     </BrowserRouter>
   )

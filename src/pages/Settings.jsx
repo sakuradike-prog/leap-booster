@@ -2,15 +2,41 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import { importCSVFromUrl } from '../utils/importFromCSV'
+import { loadExamples } from '../utils/loadExamples'
 
 const WORD_LISTS = [
   { id: 'new', label: 'LEAP改訂版（2300語）', file: '/data/leap_words.csv' },
   { id: 'old', label: 'LEAP旧版（1935語）', file: '/data/leap_words_old.csv' },
 ]
 
+const ALPHA_CSV = '/data/leap_alpha.csv'
+
 function getStoredTimer() {
-  const v = parseInt(localStorage.getItem('challengeTimerSecs'), 10)
-  return (!isNaN(v) && v >= 3 && v <= 15) ? v : 7
+  const v = parseInt(localStorage.getItem('quizTimerSecs'), 10)
+  return (!isNaN(v) && v >= 3 && v <= 15) ? v : 10
+}
+
+function getBoolSetting(key) {
+  return localStorage.getItem(key) !== 'false'
+}
+
+// トグルスイッチ
+function Toggle({ enabled, onChange }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!enabled)}
+      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+        enabled ? 'bg-blue-500' : 'bg-slate-600'
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${
+          enabled ? 'translate-x-6' : 'translate-x-1'
+        }`}
+      />
+    </button>
+  )
 }
 
 export default function Settings() {
@@ -23,7 +49,21 @@ export default function Settings() {
   function handleTimerChange(val) {
     const n = parseInt(val, 10)
     setChallengeTimer(n)
-    localStorage.setItem('challengeTimerSecs', String(n))
+    localStorage.setItem('quizTimerSecs', String(n))
+  }
+
+  // サウンド設定
+  const [soundEnabled, setSoundEnabled] = useState(() => getBoolSetting('soundEnabled'))
+  function handleSoundToggle(val) {
+    setSoundEnabled(val)
+    localStorage.setItem('soundEnabled', String(val))
+  }
+
+  // 読み上げ設定
+  const [speechEnabled, setSpeechEnabled] = useState(() => getBoolSetting('speechEnabled'))
+  function handleSpeechToggle(val) {
+    setSpeechEnabled(val)
+    localStorage.setItem('speechEnabled', String(val))
   }
 
   // 単語リスト切り替え
@@ -32,6 +72,25 @@ export default function Settings() {
   const [listSwitching, setListSwitching] = useState(false)
   const [listSwitchDone, setListSwitchDone] = useState(false)
   const [listSwitchError, setListSwitchError] = useState(null)
+
+  // αパート追加
+  const [alphaAdding, setAlphaAdding] = useState(false)
+  const [alphaDone, setAlphaDone] = useState(false)
+  const [alphaError, setAlphaError] = useState(null)
+
+  async function handleAddAlpha() {
+    setAlphaAdding(true)
+    setAlphaDone(false)
+    setAlphaError(null)
+    try {
+      await importCSVFromUrl(ALPHA_CSV, false)
+      setAlphaDone(true)
+    } catch (err) {
+      setAlphaError(err.message)
+    } finally {
+      setAlphaAdding(false)
+    }
+  }
 
   async function handleReset() {
     await db.transaction('rw', [db.words, db.cards, db.challengeHistory, db.warmupHistory, db.userStats, db.warmupSentences], async () => {
@@ -62,6 +121,7 @@ export default function Settings() {
     setListSwitchError(null)
     try {
       await importCSVFromUrl(pendingList.file, true)
+      await loadExamples()
       setListSwitchDone(true)
     } catch (err) {
       setListSwitchError(err.message)
@@ -81,10 +141,33 @@ export default function Settings() {
           <h1 className="text-2xl font-bold">⚙️ 設定</h1>
         </div>
 
-        {/* チャレンジ タイマー設定 */}
+        {/* サウンド・読み上げ設定 */}
         <section className="mb-8">
           <h2 className="text-lg font-bold text-slate-200 mb-4 pb-2 border-b border-slate-700">
-            30問チャレンジ タイマー
+            🔊 サウンド・読み上げ
+          </h2>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <div className="text-slate-200 font-semibold text-sm">効果音</div>
+                <div className="text-slate-500 text-xs mt-0.5">正解・不正解のピンポーン・ブブー音</div>
+              </div>
+              <Toggle enabled={soundEnabled} onChange={handleSoundToggle} />
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <div className="text-slate-200 font-semibold text-sm">英語読み上げ</div>
+                <div className="text-slate-500 text-xs mt-0.5">単語・英文の自動音声読み上げ</div>
+              </div>
+              <Toggle enabled={speechEnabled} onChange={handleSpeechToggle} />
+            </div>
+          </div>
+        </section>
+
+        {/* 4択練習 タイマー設定 */}
+        <section className="mb-8">
+          <h2 className="text-lg font-bold text-slate-200 mb-4 pb-2 border-b border-slate-700">
+            4択練習 タイマー
           </h2>
           <div className="flex items-center justify-between mb-3">
             <span className="text-slate-300 text-sm">1問あたりの制限時間</span>
@@ -162,6 +245,40 @@ export default function Settings() {
                 ※ 切り替えると学習履歴がリセットされます
               </p>
             </div>
+          )}
+        </section>
+
+        {/* αパート追加（旧版ユーザー向け） */}
+        <section className="mb-8">
+          <h2 className="text-lg font-bold text-slate-200 mb-4 pb-2 border-b border-slate-700">
+            αパートを追加する
+          </h2>
+          <p className="text-slate-400 text-sm mb-4">
+            旧版（1935語）を使用中の場合でも、改訂版のαパート（300語）だけを追加できます。Part1〜4の学習履歴はそのまま保持されます。
+          </p>
+
+          {alphaDone && (
+            <div className="mb-4 p-4 bg-green-900/50 border border-green-600 rounded-xl text-green-300">
+              ✅ αパート（300語）を追加しました。
+            </div>
+          )}
+          {alphaError && (
+            <div className="mb-4 p-4 bg-red-900/50 border border-red-600 rounded-xl text-red-300">
+              ❌ {alphaError}
+            </div>
+          )}
+
+          {alphaAdding ? (
+            <div className="p-4 bg-slate-800 rounded-xl text-slate-300 text-center">
+              ⏳ αパートデータを読み込み中...
+            </div>
+          ) : (
+            <button
+              onClick={handleAddAlpha}
+              className="w-full py-4 text-base font-bold bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl transition-colors text-left px-5"
+            >
+              ✨ αパートを追加する（300語）
+            </button>
           )}
         </section>
 

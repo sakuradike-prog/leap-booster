@@ -1,11 +1,22 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
+import { playCorrect, playWrong } from '../utils/sound'
+import { speak } from '../utils/speak'
+import { findRoots } from '../utils/findRoots'
+import WordCard from '../components/WordCard'
+import WordDetailScreen from '../components/WordDetailScreen'
 import { useUserStats } from '../hooks/useUserStats'
+import StreakToast from '../components/StreakToast'
+import SessionCompleteOverlay from '../components/SessionCompleteOverlay'
 
 const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const QUESTIONS = 10
-const TIME_LIMIT = 10 // seconds per question
+
+function getQuizTimerSecs() {
+  const v = parseInt(localStorage.getItem('quizTimerSecs'), 10)
+  return (!isNaN(v) && v >= 3 && v <= 15) ? v : 10
+}
 
 function shuffle(arr) {
   const a = [...arr]
@@ -16,26 +27,20 @@ function shuffle(arr) {
   return a
 }
 
-function isSameDay(a, b) {
-  const da = new Date(a), db2 = new Date(b)
-  return da.getFullYear() === db2.getFullYear() &&
-    da.getMonth() === db2.getMonth() &&
-    da.getDate() === db2.getDate()
-}
-
-// パート選択に応じたボーナスを計算
-function calcPartBonus(selected) {
-  if (selected.includes('α')) return 4
-  if (selected.includes('Part4')) return 3
-  if (selected.includes('Part3')) return 2
-  if (selected.includes('Part2')) return 1
-  return 0
-}
-
 // ---- パート選択画面 ----
-function PartSelect({ onStart, alreadyDone }) {
-  const [selected, setSelected] = useState(['Part1'])
+const PRACTICE_LAST_PART_KEY = 'vocaleap_practice_last_part'
+
+function PartSelect({ onStart }) {
+  const [selected, setSelected] = useState(() => {
+    try {
+      const saved = localStorage.getItem(PRACTICE_LAST_PART_KEY)
+      return saved ? JSON.parse(saved) : ['Part1']
+    } catch {
+      return ['Part1']
+    }
+  })
   const [wordCounts, setWordCounts] = useState({})
+  const navigate = useNavigate()
 
   useEffect(() => {
     async function fetchCounts() {
@@ -49,43 +54,35 @@ function PartSelect({ onStart, alreadyDone }) {
   }, [])
 
   function toggle(part) {
-    setSelected(prev =>
-      prev.includes(part) ? prev.filter(p => p !== part) : [...prev, part]
-    )
+    setSelected(prev => {
+      const next = prev.includes(part) ? prev.filter(p => p !== part) : [...prev, part]
+      try { localStorage.setItem(PRACTICE_LAST_PART_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
   }
-
-  const partBonus = calcPartBonus(selected)
-  const maxPoints = QUESTIONS + partBonus + 1 // 全正解 + パートボーナス + タイムボーナス
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center px-4 py-8">
       <button
-        onClick={() => window.history.back()}
+        onClick={() => navigate('/')}
         className="self-start text-slate-400 hover:text-white mb-6 text-sm"
       >
         ← 戻る
       </button>
 
-      <h1 className="text-2xl font-bold mb-1">⚡ 10問デイリークイズ</h1>
-      <p className="text-slate-400 text-sm mb-6">今日1回限り・4択クイズ</p>
+      <h1 className="text-2xl font-bold mb-1">💡 4択練習</h1>
+      <p className="text-slate-400 text-sm mb-6">ポイントなし・何度でも挑戦できる</p>
 
-      {alreadyDone && (
-        <div className="w-full max-w-sm mb-6 p-4 bg-amber-900/30 border border-amber-700 rounded-xl text-amber-300 text-sm text-center">
-          今日はすでに受験済みです。明日また挑戦しよう！
-        </div>
-      )}
-
-      <div className="w-full max-w-sm flex flex-col gap-3 mb-6">
+      <div className="w-full max-w-sm flex flex-col gap-3 mb-8">
         {PARTS.map(part => (
           <button
             key={part}
-            onClick={() => !alreadyDone && toggle(part)}
-            disabled={alreadyDone}
+            onClick={() => toggle(part)}
             className={`flex items-center justify-between w-full py-4 px-5 rounded-xl text-lg font-bold border-2 transition-all ${
               selected.includes(part)
                 ? 'bg-blue-600 border-blue-400 text-white'
                 : 'bg-slate-800 border-slate-600 text-slate-400'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            }`}
           >
             <span>{part}</span>
             <span className="text-sm font-normal">
@@ -95,30 +92,9 @@ function PartSelect({ onStart, alreadyDone }) {
         ))}
       </div>
 
-      {/* ポイントプレビュー */}
-      <div className="w-full max-w-sm bg-slate-800 rounded-xl p-4 mb-6 text-sm">
-        <div className="text-slate-400 font-bold mb-3">獲得できるポイント</div>
-        <div className="flex justify-between mb-1">
-          <span className="text-slate-300">正解ポイント（最大）</span>
-          <span className="text-blue-400 font-bold">{QUESTIONS}pt</span>
-        </div>
-        <div className="flex justify-between mb-1">
-          <span className="text-slate-300">パートボーナス</span>
-          <span className="text-amber-400 font-bold">+{partBonus}pt</span>
-        </div>
-        <div className="flex justify-between mb-3">
-          <span className="text-slate-300">タイムボーナス（平均3秒以内）</span>
-          <span className="text-green-400 font-bold">+1pt</span>
-        </div>
-        <div className="border-t border-slate-700 pt-2 flex justify-between font-bold">
-          <span className="text-white">最大獲得ポイント</span>
-          <span className="text-amber-400">{maxPoints}pt</span>
-        </div>
-      </div>
-
       <button
         onClick={() => onStart(selected)}
-        disabled={selected.length === 0 || alreadyDone}
+        disabled={selected.length === 0}
         className="w-full max-w-sm py-5 text-xl font-bold bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-2xl transition-colors"
       >
         スタート
@@ -127,28 +103,53 @@ function PartSelect({ onStart, alreadyDone }) {
   )
 }
 
+// ── studyCount +1（出題ごと）──
+async function saveStudyCountBatch(words) {
+  for (const word of words) {
+    if (!word?.id) continue
+    try {
+      const existing = await db.cards.where('wordId').equals(word.id).first()
+      if (existing) {
+        await db.cards.update(existing.id, {
+          studyCount: (existing.studyCount ?? 0) + 1,
+          lastReviewed: new Date(),
+        })
+      } else {
+        await db.cards.add({
+          wordId: word.id,
+          lastReviewed: new Date(),
+          correctCount: 0,
+          incorrectCount: 0,
+          studyCount: 1,
+        })
+      }
+    } catch { /* ignore */ }
+  }
+}
+
 // ---- 出題画面 ----
-function QuizScreen({ questions, onFinish }) {
+function QuizScreen({ questions, onFinish, onHome }) {
   const [qIdx, setQIdx] = useState(0)
   const [selectedChoice, setSelectedChoice] = useState(null)
   const [revealed, setRevealed] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT)
+  const [choicesVisible, setChoicesVisible] = useState(false)
+  const [timeLimit] = useState(getQuizTimerSecs)
+  const [timeLeft, setTimeLeft] = useState(() => getQuizTimerSecs())
   const [scoreDisplay, setScoreDisplay] = useState(0)
 
   const scoreRef = useRef(0)
-  const responseTimesRef = useRef([])
-  const startTimeRef = useRef(Date.now())
   const revealedRef = useRef(false)
+  const choicesRef = useRef(null)
 
   const q = questions[qIdx]
 
-  // 問題が変わるたびにタイマーをリセット
   useEffect(() => {
     revealedRef.current = false
     setSelectedChoice(null)
     setRevealed(false)
-    setTimeLeft(TIME_LIMIT)
-    startTimeRef.current = Date.now()
+    setChoicesVisible(false)
+    setTimeLeft(timeLimit)
+    speak(questions[qIdx].word.word, 'en-US', 0.85)
 
     const timerId = setInterval(() => {
       setTimeLeft(prev => {
@@ -156,7 +157,7 @@ function QuizScreen({ questions, onFinish }) {
           clearInterval(timerId)
           if (!revealedRef.current) {
             revealedRef.current = true
-            responseTimesRef.current.push(TIME_LIMIT)
+            setChoicesVisible(true)
             setSelectedChoice(-1)
             setRevealed(true)
             setTimeout(() => advance(qIdx), 1500)
@@ -170,12 +171,12 @@ function QuizScreen({ questions, onFinish }) {
     return () => clearInterval(timerId)
   }, [qIdx]) // eslint-disable-line
 
-  function advance(currentQIdx) {
+  async function advance(currentQIdx) {
     const nextIdx = currentQIdx + 1
     if (nextIdx >= questions.length) {
-      const times = responseTimesRef.current
-      const avg = times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : TIME_LIMIT
-      onFinish({ score: scoreRef.current, timeBonus: avg <= 3 ? 1 : 0 })
+      // 全問終了 → 全単語の学習履歴を保存
+      await saveStudyCountBatch(questions.map(q => q.word))
+      onFinish({ score: scoreRef.current, words: questions.map(q => q.word) })
     } else {
       setQIdx(nextIdx)
     }
@@ -184,12 +185,14 @@ function QuizScreen({ questions, onFinish }) {
   function handleAnswer(choiceIdx) {
     if (revealedRef.current) return
     revealedRef.current = true
-    const elapsed = (Date.now() - startTimeRef.current) / 1000
-    responseTimesRef.current.push(elapsed)
     const isCorrect = choiceIdx === q.correctIdx
+
     if (isCorrect) {
+      playCorrect()
       scoreRef.current += 1
       setScoreDisplay(s => s + 1)
+    } else {
+      playWrong()
     }
     setSelectedChoice(choiceIdx)
     setRevealed(true)
@@ -204,66 +207,94 @@ function QuizScreen({ questions, onFinish }) {
           <span>{qIdx + 1} / {questions.length}</span>
           <span className={timeLeft <= 3 ? 'text-red-400 font-bold animate-pulse' : ''}>{timeLeft}秒</span>
         </div>
-        {/* 問題進捗バー */}
         <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden mb-1">
           <div
             className="h-full bg-blue-500 rounded-full transition-all duration-300"
             style={{ width: `${(qIdx / questions.length) * 100}%` }}
           />
         </div>
-        {/* タイムバー */}
         <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all ease-linear duration-1000 ${timeLeft <= 3 ? 'bg-red-500' : 'bg-amber-400'}`}
-            style={{ width: `${(timeLeft / TIME_LIMIT) * 100}%` }}
+            style={{ width: `${(timeLeft / timeLimit) * 100}%` }}
           />
         </div>
       </div>
 
       <div className="text-slate-500 text-sm mb-4">{scoreDisplay} 問正解中</div>
 
-      {/* 単語カード */}
-      <div className="w-full max-w-sm bg-slate-800 rounded-2xl p-8 text-center mb-6">
+      {/* 単語カード（タップで再読み上げ） */}
+      <div
+        className="w-full max-w-sm bg-slate-800 rounded-2xl p-8 text-center mb-6 active:opacity-70 transition-opacity"
+        onClick={() => speak(q.word.word, 'en-US', 0.85)}
+      >
         <div className="text-slate-500 text-sm mb-1">{q.word.leapPart} No.{q.word.leapNumber}</div>
         <div className="text-5xl font-black mb-2">{q.word.word}</div>
         <div className="text-slate-500 text-sm">{q.word.partOfSpeech}</div>
       </div>
 
-      {/* 4択 */}
-      <div className="w-full max-w-sm flex flex-col gap-3">
-        {q.choices.map((choice, i) => {
-          let cls = 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700 active:scale-95'
-          if (revealed) {
-            if (i === q.correctIdx) cls = 'bg-green-800 border-green-500 text-white'
-            else if (i === selectedChoice) cls = 'bg-red-900 border-red-600 text-white'
-            else cls = 'bg-slate-800 border-slate-700 text-slate-500 opacity-50'
-          }
-          return (
-            <button
-              key={i}
-              onClick={() => handleAnswer(i)}
-              disabled={revealed}
-              className={`w-full py-4 px-5 border-2 rounded-xl text-left font-medium transition-all ${cls}`}
-            >
-              <span className="text-slate-400 font-bold mr-3 text-sm">{['A', 'B', 'C', 'D'][i]}</span>
-              {choice}
-            </button>
-          )
-        })}
-      </div>
+      {!choicesVisible ? (
+        <div className="w-full max-w-sm">
+          <button
+            onClick={() => {
+              setChoicesVisible(true)
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+                })
+              })
+            }}
+            className="w-full py-5 text-xl font-bold bg-slate-700 hover:bg-slate-600 border-2 border-slate-500 rounded-2xl transition-all active:scale-95"
+          >
+            💡 答えを見る
+          </button>
+          <p className="text-center text-slate-600 text-xs mt-3">
+            頭の中で意味を考えてからタップ
+          </p>
+          <button
+            onClick={async () => {
+              // 途中終了 → 出題済み単語（0〜qIdx）の学習履歴を保存
+              await saveStudyCountBatch(questions.slice(0, qIdx + 1).map(q => q.word))
+              onHome()
+            }}
+            className="w-full mt-3 py-3 text-slate-500 hover:text-slate-300 text-sm transition-colors"
+          >
+            終了してメニューへ
+          </button>
+        </div>
+      ) : (
+        <div ref={choicesRef} className="w-full max-w-sm flex flex-col gap-3">
+          {q.choices.map((choice, i) => {
+            let cls = 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700 active:scale-95'
+            if (revealed) {
+              if (i === q.correctIdx) cls = 'bg-green-800 border-green-500 text-white'
+              else if (i === selectedChoice) cls = 'bg-red-900 border-red-600 text-white'
+              else cls = 'bg-slate-800 border-slate-700 text-slate-500 opacity-50'
+            }
+            return (
+              <button
+                key={i}
+                onClick={() => handleAnswer(i)}
+                disabled={revealed}
+                className={`w-full py-4 px-5 border-2 rounded-xl text-left font-medium transition-all ${cls}`}
+              >
+                <span className="text-slate-400 font-bold mr-3 text-sm">{['A', 'B', 'C', 'D'][i]}</span>
+                {choice}
+              </button>
+            )
+          })}
 
-      {revealed && selectedChoice === -1 && (
-        <div className="mt-4 text-red-400 font-bold animate-pulse">⏰ 時間切れ！</div>
+          {revealed && selectedChoice === -1 && (
+            <div className="mt-2 text-red-400 font-bold animate-pulse text-center">⏰ 時間切れ！</div>
+          )}
+        </div>
       )}
     </div>
   )
 }
 
-// ---- 結果画面 ----
-function ResultScreen({ result, onHome }) {
-  const { score, partBonus, timeBonus } = result
-  const totalPoints = score + partBonus + timeBonus
-
+// ---- 結果画面（解説ボタン付き） ----
+function ResultScreen({ score, onReview, onHome }) {
   const emoji =
     score === QUESTIONS ? '🎉' :
     score >= 8 ? '😄' :
@@ -275,57 +306,52 @@ function ResultScreen({ result, onHome }) {
       <h2 className="text-5xl font-black text-blue-400 mb-1">{score} / {QUESTIONS}</h2>
       <p className="text-slate-400 mb-8">正解数</p>
 
-      {/* ポイント内訳 */}
-      <div className="w-full max-w-sm bg-slate-800 rounded-2xl p-5 mb-8 text-sm">
-        <h3 className="text-slate-300 font-bold mb-3 text-base">ポイント内訳</h3>
-        <div className="flex justify-between mb-1">
-          <span className="text-slate-400">正解ポイント</span>
-          <span className="text-blue-400 font-bold">+{score}pt</span>
-        </div>
-        <div className="flex justify-between mb-1">
-          <span className="text-slate-400">パートボーナス</span>
-          <span className="text-amber-400 font-bold">+{partBonus}pt</span>
-        </div>
-        <div className="flex justify-between mb-3">
-          <span className="text-slate-400">タイムボーナス</span>
-          <span className={`font-bold ${timeBonus > 0 ? 'text-green-400' : 'text-slate-600'}`}>
-            {timeBonus > 0 ? '+1pt' : '±0pt'}
-          </span>
-        </div>
-        <div className="border-t border-slate-700 pt-3 flex justify-between font-bold text-base">
-          <span className="text-white">合計獲得ポイント</span>
-          <span className="text-amber-400">+{totalPoints}pt</span>
-        </div>
+      <div className="w-full max-w-sm flex flex-col gap-4">
+        <button
+          onClick={onReview}
+          className="w-full py-5 text-xl font-bold bg-amber-600 hover:bg-amber-500 rounded-2xl transition-colors"
+        >
+          📖 解説を始める
+        </button>
+        <button
+          onClick={onHome}
+          className="w-full py-5 text-xl font-bold bg-slate-700 hover:bg-slate-600 rounded-2xl transition-colors"
+        >
+          ホームへ
+        </button>
       </div>
-
-      <button
-        onClick={onHome}
-        className="w-full max-w-sm py-5 text-xl font-bold bg-blue-600 hover:bg-blue-500 rounded-2xl transition-colors"
-      >
-        ホームへ
-      </button>
     </div>
+  )
+}
+
+// ---- 単語解説スライドショー（CMBreak風・タイトルなし） ----
+// ReviewSlideshow → 共通 WordDetailScreen を使用
+// 「← 戻る」でホームへ
+function ReviewSlideshow({ words, onHome }) {
+  if (!words || words.length === 0) return null
+  return (
+    <WordDetailScreen
+      word={words[0]}
+      sessionWords={words}
+      initialIndex={0}
+      backLabel="終了する"
+      backAsLink={true}
+      onBack={onHome}
+    />
   )
 }
 
 // ---- メイン ----
 export default function DailyQuiz() {
   const navigate = useNavigate()
-  const { recordDailyQuiz } = useUserStats()
   const [phase, setPhase] = useState('select')
-  const [alreadyDone, setAlreadyDone] = useState(false)
   const [questions, setQuestions] = useState([])
+  const [score, setScore] = useState(0)
+  const [reviewWords, setReviewWords] = useState([])
   const [selectedParts, setSelectedParts] = useState([])
-  const [result, setResult] = useState(null)
-
-  // 今日受験済みか確認
-  useEffect(() => {
-    db.userStats.get(1).then(s => {
-      if (s?.dailyQuizLastDate && isSameDay(s.dailyQuizLastDate, new Date())) {
-        setAlreadyDone(true)
-      }
-    })
-  }, [])
+  const [streakToast, setStreakToast] = useState(null)
+  const [showSessionOverlay, setShowSessionOverlay] = useState(false)
+  const { recordStudy } = useUserStats()
 
   async function handleStart(parts) {
     const allWords = await db.words.where('leapPart').anyOf(parts).toArray()
@@ -348,20 +374,48 @@ export default function DailyQuiz() {
   }
 
   async function handleFinish(res) {
-    const partBonus = calcPartBonus(selectedParts)
-    const totalPoints = res.score + partBonus + res.timeBonus
-    await recordDailyQuiz(totalPoints)
-    setResult({ ...res, partBonus })
+    setScore(res.score)
+    setReviewWords(res.words ?? [])
+    const result = await recordStudy()
+    if (result.streakUpdated) setStreakToast(result.currentStreak)
+    setShowSessionOverlay(true)
     setPhase('result')
   }
 
   if (phase === 'select') {
-    return <PartSelect onStart={handleStart} alreadyDone={alreadyDone} />
+    return <PartSelect onStart={handleStart} />
   }
   if (phase === 'playing') {
-    return <QuizScreen questions={questions} onFinish={handleFinish} />
+    return <QuizScreen questions={questions} onFinish={handleFinish} onHome={() => navigate('/')} />
   }
   if (phase === 'result') {
-    return <ResultScreen result={result} onHome={() => navigate('/')} />
+    return (
+      <>
+        {showSessionOverlay && (
+          <SessionCompleteOverlay
+            label="セッション完了！"
+            onDone={() => {
+              setShowSessionOverlay(false)
+              if (streakToast !== null) {
+                // StreakToastはオーバーレイ消去後に表示するため phase を一時変更
+                setPhase('streak')
+              }
+            }}
+          />
+        )}
+        <ResultScreen
+          score={score}
+          onReview={() => setPhase('review')}
+          onHome={() => navigate('/')}
+        />
+      </>
+    )
   }
+  if (phase === 'streak') {
+    return <StreakToast streak={streakToast} onDone={() => { setStreakToast(null); setPhase('result') }} />
+  }
+  if (phase === 'review') {
+    return <ReviewSlideshow words={reviewWords} onHome={() => navigate('/')} />
+  }
+  return null
 }

@@ -4,6 +4,8 @@ import { db } from '../db/database'
 import { useUserStats } from '../hooks/useUserStats'
 import { speak } from '../utils/speak'
 import WordDetailScreen from '../components/WordDetailScreen'
+import StreakToast from '../components/StreakToast'
+import SessionCompleteOverlay from '../components/SessionCompleteOverlay'
 
 const PARTS = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4', 'α']
 const HISTORY_MODE = '最近の学習から'
@@ -96,17 +98,20 @@ async function incrementStudyCount(wordId) {
 function SelectScreen({ onStart, onHistorySelect }) {
   const [selectedPart, setSelectedPart] = useState('すべて')
   const [totalCount, setTotalCount] = useState(0)
+  const [countLoading, setCountLoading] = useState(true)
   const navigate = useNavigate()
 
   const isHistoryMode = selectedPart === HISTORY_MODE
 
   useEffect(() => {
-    if (isHistoryMode) { setTotalCount(-1); return }
+    if (isHistoryMode) { setTotalCount(-1); setCountLoading(false); return }
+    setCountLoading(true)
     async function load() {
       const count = selectedPart === 'すべて'
         ? await db.warmupSentences.count()
         : await db.warmupSentences.where('leapPart').equals(selectedPart).count()
       setTotalCount(count)
+      setCountLoading(false)
     }
     load()
   }, [selectedPart, isHistoryMode])
@@ -133,7 +138,7 @@ function SelectScreen({ onStart, onHistorySelect }) {
           </div>
         </div>
 
-        {totalCount === 0 && !isHistoryMode && (
+        {!countLoading && totalCount === 0 && !isHistoryMode && (
           <div className="mb-6 p-4 bg-amber-900/30 border border-amber-700 rounded-xl text-amber-300 text-sm">
             ⚠️ 例文データが未ロードです。アプリを再起動してください。
           </div>
@@ -358,10 +363,14 @@ function QuizScreen({ questions, onComplete }) {
 
   // 単語詳細画面
   if (showDetail && question?.wordObj) {
+    const sessionWords = questions.map(q => q.wordObj).filter(Boolean)
+    const sessionIndex = sessionWords.findIndex(w => w.id === question.wordObj.id)
     return (
       <WordDetailScreen
         word={question.wordObj}
         onBack={() => setShowDetail(false)}
+        sessionWords={sessionWords}
+        initialIndex={sessionIndex >= 0 ? sessionIndex : index}
       />
     )
   }
@@ -528,11 +537,15 @@ export default function Warmup() {
   const [phase, setPhase] = useState('select')
   const [questions, setQuestions] = useState([])
   const [quizKey, setQuizKey] = useState(0)
+  const [streakToast, setStreakToast] = useState(null)
+  const [showSessionOverlay, setShowSessionOverlay] = useState(false)
   const navigate = useNavigate()
   const { recordStudy } = useUserStats()
 
   async function handleComplete(qs) {
-    await recordStudy()
+    const result = await recordStudy()
+    if (result.streakUpdated) setStreakToast(result.currentStreak)
+    setShowSessionOverlay(true)
     setPhase('summary')
   }
 
@@ -571,11 +584,25 @@ export default function Warmup() {
 
   if (phase === 'summary') {
     return (
-      <SummaryScreen
-        questions={questions}
-        onRetry={handleRetry}
-        onHome={() => navigate('/')}
-      />
+      <>
+        {showSessionOverlay && (
+          <SessionCompleteOverlay
+            label="セッション完了！"
+            onDone={() => {
+              setShowSessionOverlay(false)
+              if (streakToast !== null) setPhase('streak')
+            }}
+          />
+        )}
+        <SummaryScreen
+          questions={questions}
+          onRetry={handleRetry}
+          onHome={() => navigate('/')}
+        />
+      </>
     )
+  }
+  if (phase === 'streak') {
+    return <StreakToast streak={streakToast} onDone={() => { setStreakToast(null); setPhase('summary') }} />
   }
 }
