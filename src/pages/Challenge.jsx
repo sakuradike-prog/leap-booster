@@ -39,6 +39,11 @@ function shuffle(arr) {
   return a
 }
 
+// 単語を〇〇〇〇に変換
+function maskWord(word) {
+  return word.replace(/[^ ]/g, '○')
+}
+
 // ---- CSS アニメーション定義 ----
 const CM_STYLE = `
   @keyframes cm-progress {
@@ -388,6 +393,8 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
   const [selectedChoice, setSelectedChoice] = useState(null)
   const [revealed, setRevealed] = useState(false)
   const [cmData, setCMData] = useState(null)
+  const [wordRevealed, setWordRevealed] = useState(false)
+  const [showMaskAnnouncement, setShowMaskAnnouncement] = useState(false)
   const navigate = useNavigate()
 
   const doneRef = useRef(false)
@@ -409,6 +416,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
     setChoicesVisible(false)
     setSelectedChoice(null)
     setRevealed(false)
+    setWordRevealed(false)
     capturedTimeLeftRef.current = timerSecs
   }, [current, timerSecs])
 
@@ -533,6 +541,37 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
     }
   }
 
+  // 伏字アナウンスオーバーレイ
+  if (showMaskAnnouncement) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center px-6 text-center">
+        <div
+          style={{
+            animation: 'bounce-in 0.5s both',
+          }}
+        >
+          <div className="text-7xl mb-6">🙈</div>
+          <h2 className="text-2xl font-black mb-3 text-purple-300">最後の10問！</h2>
+          <p className="text-white text-lg font-bold leading-relaxed mb-2">
+            英単語が伏字になるよ！
+          </p>
+          <p className="text-slate-400 text-sm">
+            音声を聞いて意味を考えよう
+          </p>
+          <div className="mt-8 flex gap-1 justify-center">
+            {[0,1,2].map(i => (
+              <div
+                key={i}
+                className="w-2 h-2 rounded-full bg-purple-400"
+                style={{ animation: `pulse 1s ${i * 0.3}s infinite` }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // CMブレイク中
   if (cmData) {
     return (
@@ -541,7 +580,16 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
         timings={cmData.timings}
         blockNumber={cmData.blockNumber}
         timerSecs={timerSecs}
-        onContinue={() => setCMData(null)}
+        onContinue={() => {
+          if (cmData.blockNumber === 2) {
+            // 21問目突入 → 伏字アナウンスを2.5秒表示してから出題へ
+            setCMData(null)
+            setShowMaskAnnouncement(true)
+            setTimeout(() => setShowMaskAnnouncement(false), 2500)
+          } else {
+            setCMData(null)
+          }
+        }}
         onHonestEnd={(suspiciousWord) => {
           setCMData(null)
           onHonestEnd(suspiciousWord, streak)
@@ -588,16 +636,25 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
       </div>
 
       {/* 単語カード */}
-      <div className={`w-full max-w-sm bg-slate-800 rounded-3xl px-6 py-5 mb-3 text-center transition-opacity duration-150 ${
+      <div className={`w-full max-w-sm rounded-3xl px-6 py-5 mb-3 text-center transition-opacity duration-150 ${
         flipping ? 'opacity-0' : 'opacity-100'
-      }`}>
+      } ${streak >= 20 ? 'bg-purple-950/70 border border-purple-800' : 'bg-slate-800'}`}>
         <div className="flex items-center justify-center gap-2 mb-2">
           <span className="text-slate-500 text-sm">No. {word.leapNumber} ({word.leapPart})</span>
           <WordBadges isCaptured={question.isCaptured} />
         </div>
+        {/* 伏字モード：streak >= 20 */}
         <div
           className="font-black tracking-tight leading-tight mb-1"
-          style={{
+          style={streak >= 20 && !wordRevealed ? {
+            fontSize: word.word.length <= 5  ? '2.25rem'
+              : word.word.length <= 8  ? '1.875rem'
+              : word.word.length <= 11 ? '1.5rem'
+              : word.word.length <= 15 ? '1.25rem' : '1rem',
+            letterSpacing: '0.05em',
+            whiteSpace: 'nowrap',
+            color: '#c4b5fd',
+          } : {
             fontSize: word.word.length <= 10 ? '3rem'
               : word.word.length <= 13 ? '2.25rem'
               : word.word.length <= 17 ? '1.75rem' : '1.375rem',
@@ -605,9 +662,17 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
             wordBreak: 'break-word',
           }}
         >
-          {word.word}
+          {streak >= 20 && !wordRevealed ? maskWord(word.word) : word.word}
         </div>
         <div className="text-slate-500 text-sm mt-1">{word.partOfSpeech}</div>
+        {streak >= 20 && !wordRevealed && (
+          <button
+            onClick={() => setWordRevealed(true)}
+            className="mt-2 text-xs text-purple-400 hover:text-purple-200 bg-purple-900/50 hover:bg-purple-900 px-4 py-1.5 rounded-full transition-colors"
+          >
+            単語を表示
+          </button>
+        )}
       </div>
 
       {/* 語族セクション */}
