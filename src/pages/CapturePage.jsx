@@ -77,12 +77,13 @@ export default function CapturePage() {
   const [savedMemo, setSavedMemo] = useState('')          // 完了画面表示用
   const [searching, setSearching] = useState(false)
   const [streakToast, setStreakToast] = useState(null)
+  const [isNewCapture, setIsNewCapture] = useState(false)
   // インライン編集
   const [editingMemo, setEditingMemo] = useState(false)
   const [editMemoValue, setEditMemoValue] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
   const editInputRef = useRef(null)
-  const { recordStudy } = useUserStats()
+  const { recordStudy, addPoints } = useUserStats()
 
   // LEAP No. が変わったら単語を検索
   useEffect(() => {
@@ -114,6 +115,7 @@ export default function CapturePage() {
     if (!foundWord) return
     const finalMemo = memo.trim() || WILD_LABEL
     const existing = await db.captured_words.where('leapNumber').equals(foundWord.leapNumber).first()
+    const isNew = !existing
     if (existing) {
       await db.captured_words.update(existing.id, { memo: finalMemo, capturedAt: new Date() })
     } else {
@@ -127,6 +129,8 @@ export default function CapturePage() {
     playCaptureSound()
     const result = await recordStudy()
     if (result.streakUpdated) setStreakToast(result.currentStreak)
+    if (isNew) await addPoints(1)
+    setIsNewCapture(isNew)
     setSavedMemo(finalMemo)
     setRegistered(true)
   }
@@ -148,6 +152,7 @@ export default function CapturePage() {
     setCapturedEntry(null)
     setRegistered(false)
     setSavedMemo('')
+    setIsNewCapture(false)
     setEditingMemo(false)
     setEditMemoValue('')
   }
@@ -225,7 +230,22 @@ export default function CapturePage() {
             </h2>
             <p style={{ color: '#ffffff', fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{foundWord.word}</p>
             <p style={{ color: '#67e8f9', fontSize: 13, marginBottom: 3 }}>No.{foundWord.leapNumber} {foundWord.leapPart}</p>
-            <p style={{ color: '#475569', fontSize: 13, marginBottom: 36 }}>📍 {savedMemo}</p>
+            <p style={{ color: '#475569', fontSize: 13, marginBottom: isNewCapture ? 12 : 36 }}>📍 {savedMemo}</p>
+            {isNewCapture && (
+              <div style={{
+                display: 'inline-block',
+                background: 'linear-gradient(90deg, rgba(59,130,246,0.25), rgba(99,102,241,0.25))',
+                border: '1px solid rgba(99,102,241,0.5)',
+                borderRadius: 12,
+                padding: '8px 20px',
+                marginBottom: 36,
+                animation: 'cpSlideUp .4s ease-out .65s both',
+                opacity: 0,
+              }}>
+                <span style={{ color: '#818cf8', fontSize: 13, fontWeight: 700 }}>初回捕獲ボーナス　</span>
+                <span style={{ color: '#a5b4fc', fontSize: 20, fontWeight: 900 }}>+1 pt</span>
+              </div>
+            )}
           </div>
 
           {/* ボタン */}

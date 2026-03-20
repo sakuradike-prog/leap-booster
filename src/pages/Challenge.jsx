@@ -734,8 +734,9 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
 
 // ---- 終了画面（時間切れ・正直終了 共通） ----
 // reason: 'timeout' | 'honest'
-function TimeoutScreen({ word, streak, reason, onRetry, onHome, onWordDetail }) {
+function TimeoutScreen({ word, streak, reason, earnedPoints, capturedCount, onRetry, onHome, onWordDetail }) {
   const isHonest = reason === 'honest'
+  const normalCount = streak - capturedCount
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center px-4 text-center">
@@ -755,11 +756,23 @@ function TimeoutScreen({ word, streak, reason, onRetry, onHome, onWordDetail }) 
         {word.meaning}
       </p>
       <p className="text-slate-500 text-xs mb-4">タップして詳細を見る →</p>
-      <p className="text-slate-600 text-sm mb-8">
+      <p className="text-slate-600 text-sm mb-4">
         {isHonest
           ? `ブロック正解 ${streak} 問で終了`
           : `連続正解 ${streak} 問でストップ`}
       </p>
+
+      {/* ポイント獲得 */}
+      {earnedPoints > 0 && (
+        <div className="w-full max-w-sm bg-blue-900/40 border border-blue-700 rounded-2xl px-6 py-4 mb-4">
+          <p className="text-blue-300 text-xs font-bold uppercase tracking-wider mb-2">獲得ポイント</p>
+          <div className="text-4xl font-black text-blue-400 mb-2">+{earnedPoints} pt</div>
+          <div className="flex justify-center gap-4 text-xs text-slate-400">
+            {normalCount > 0 && <span>通常 {normalCount}問 × 1pt</span>}
+            {capturedCount > 0 && <span className="text-cyan-400">🎯捕獲済 {capturedCount}問 × 2pt</span>}
+          </div>
+        </div>
+      )}
 
       <div className="w-full max-w-sm bg-amber-900/30 border border-amber-700 rounded-2xl px-6 py-5 mb-8">
         {isHonest ? (
@@ -1091,8 +1104,10 @@ export default function Challenge() {
   const [clearTimings, setClearTimings] = useState([])
   const [timerSecs] = useState(DEFAULT_TIMER_SECS)
   const [streakToast, setStreakToast] = useState(null)
+  const [timeoutEarnedPoints, setTimeoutEarnedPoints] = useState(0)
+  const [timeoutCapturedCount, setTimeoutCapturedCount] = useState(0)
   const startTimeRef = useRef(null)
-  const { recordChallengeClear, recordStudy } = useUserStats()
+  const { recordChallengeClear, recordStudy, addPoints } = useUserStats()
   const navigate = useNavigate()
 
   // 今日クリア済みか確認
@@ -1172,8 +1187,21 @@ export default function Challenge() {
     setPhase('clear')
   }
 
+  // 時間切れ・正直終了の共通ポイント計算（words[0..streak-1] が正解済み）
+  async function calcAndSaveTimeoutPoints(streak) {
+    const answeredQuestions = words.slice(0, streak)
+    let pts = 0, cCount = 0
+    for (const q of answeredQuestions) {
+      if (q.isCaptured) { pts += 2; cCount++ } else { pts += 1 }
+    }
+    if (pts > 0) await addPoints(pts)
+    setTimeoutEarnedPoints(pts)
+    setTimeoutCapturedCount(cCount)
+  }
+
   // 時間切れ終了
   async function handleTimeout(word, streak) {
+    await calcAndSaveTimeoutPoints(streak)
     await db.challengeHistory.add({
       date: new Date(),
       parts: selectedParts,
@@ -1190,12 +1218,15 @@ export default function Challenge() {
 
   // 正直終了（CMブレイク3択から）
   async function handleHonestEnd(word, streak) {
+    await calcAndSaveTimeoutPoints(streak)
     await db.challengeHistory.add({
       date: new Date(),
       parts: selectedParts,
       result: streak,
       cleared: false,
     })
+    const studyResult = await recordStudy()
+    if (studyResult.streakUpdated) setStreakToast(studyResult.currentStreak)
     setTimeoutWord(word)
     setTimeoutStreak(streak)
     setTimeoutReason('honest')
@@ -1230,6 +1261,8 @@ export default function Challenge() {
         word={timeoutWord}
         streak={timeoutStreak}
         reason={timeoutReason}
+        earnedPoints={timeoutEarnedPoints}
+        capturedCount={timeoutCapturedCount}
         onRetry={() => setPhase('select')}
         onHome={() => navigate('/')}
         onWordDetail={() => setShowTimeoutDetail(true)}

@@ -180,6 +180,26 @@ export function useUserStats() {
     return { ...updated, freezeEarned, streakUpdated: !wasAlreadyToday }
   }, [])
 
+  // ポイントのみ加算（clearchallengeカウント・ストリーク変更なし）
+  const addPoints = useCallback(async (pts) => {
+    if (!pts || pts <= 0) return
+    const current = (await db.userStats.get(1)) ?? DEFAULT_STATS
+    const today = new Date()
+    const todayPts = (current.todayPointsDate && isSameDay(new Date(current.todayPointsDate), today))
+      ? (current.todayPoints ?? 0) + pts
+      : pts
+    const updated = {
+      ...DEFAULT_STATS,
+      ...current,
+      totalPoints: (current.totalPoints ?? 0) + pts,
+      todayPoints: todayPts,
+      todayPointsDate: today,
+    }
+    await db.userStats.put(updated)
+    setStats(updated)
+    return updated
+  }, [])
+
   const clearFreezeNotice = useCallback(() => setFreezeNotice(null), [])
 
   return {
@@ -191,5 +211,6 @@ export function useUserStats() {
     recordStudy,
     recordChallengeClear,
     recordDailyQuiz,
+    addPoints,
   }
 }
