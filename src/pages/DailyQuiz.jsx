@@ -10,6 +10,9 @@ import { useUserStats } from '../hooks/useUserStats'
 import StreakToast from '../components/StreakToast'
 import SessionCompleteOverlay from '../components/SessionCompleteOverlay'
 import WordBadges from '../components/WordBadges'
+import { addStudyLog } from '../utils/studyLog'
+import { startSession, endSession } from '../utils/sessionLog'
+import { incrementConsecutiveCorrect, resetConsecutiveCorrect } from '../utils/consecutiveCorrect'
 
 
 const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
@@ -178,6 +181,8 @@ function QuizScreen({ questions, onFinish, onHome, maskMode }) {
   const revealedRef = useRef(false)
   const choicesRef = useRef(null)
   const incorrectIdsRef = useRef(new Set())
+  const questionStartRef = useRef(Date.now())
+  const sessionIdRef = useRef(null)
 
   const q = questions[qIdx]
 
@@ -190,6 +195,11 @@ function QuizScreen({ questions, onFinish, onHome, maskMode }) {
     setTimeLeft(timeLimit)
     speak(questions[qIdx].word.word, 'en-US', 0.85)
 
+    // 問題表示ログ
+    questionStartRef.current = Date.now()
+    const _q = questions[qIdx]
+    if (_q?.word) addStudyLog({ leapNumber: _q.word.leapNumber, word: _q.word.word, eventType: 'studied', mode: 'practice' })
+
     const timerId = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -200,6 +210,14 @@ function QuizScreen({ questions, onFinish, onHome, maskMode }) {
             setChoicesVisible(true)
             setSelectedChoice(-1)
             setRevealed(true)
+            resetConsecutiveCorrect()
+            addStudyLog({
+              leapNumber: questions[qIdx].word.leapNumber,
+              word: questions[qIdx].word.word,
+              eventType: 'incorrect',
+              mode: 'practice',
+              responseTime: parseFloat(((Date.now() - questionStartRef.current) / 1000).toFixed(2)),
+            })
             setTimeout(() => advance(qIdx), 1500)
           }
           return 0
@@ -210,6 +228,12 @@ function QuizScreen({ questions, onFinish, onHome, maskMode }) {
 
     return () => clearInterval(timerId)
   }, [qIdx]) // eslint-disable-line
+
+  // セッション管理
+  useEffect(() => {
+    startSession('practice').then(id => { sessionIdRef.current = id })
+    return () => { endSession(sessionIdRef.current) }
+  }, []) // eslint-disable-line
 
   async function advance(currentQIdx) {
     const nextIdx = currentQIdx + 1
@@ -229,10 +253,26 @@ function QuizScreen({ questions, onFinish, onHome, maskMode }) {
 
     if (isCorrect) {
       playCorrect()
+      incrementConsecutiveCorrect()
+      addStudyLog({
+        leapNumber: q.word.leapNumber,
+        word: q.word.word,
+        eventType: 'correct',
+        mode: 'practice',
+        responseTime: parseFloat(((Date.now() - questionStartRef.current) / 1000).toFixed(2)),
+      })
       scoreRef.current += 1
       setScoreDisplay(s => s + 1)
     } else {
       playWrong()
+      resetConsecutiveCorrect()
+      addStudyLog({
+        leapNumber: q.word.leapNumber,
+        word: q.word.word,
+        eventType: 'incorrect',
+        mode: 'practice',
+        responseTime: parseFloat(((Date.now() - questionStartRef.current) / 1000).toFixed(2)),
+      })
       incorrectIdsRef.current.add(q.word.id)
     }
     setSelectedChoice(choiceIdx)

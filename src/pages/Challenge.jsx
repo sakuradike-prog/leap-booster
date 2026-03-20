@@ -10,6 +10,9 @@ import WordDetailScreen from '../components/WordDetailScreen'
 import StreakToast from '../components/StreakToast'
 import { playChallengeClrSound } from '../utils/celebrationSounds'
 import WordBadges from '../components/WordBadges'
+import { addStudyLog } from '../utils/studyLog'
+import { startSession, endSession } from '../utils/sessionLog'
+import { incrementConsecutiveCorrect, resetConsecutiveCorrect } from '../utils/consecutiveCorrect'
 
 const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const GOAL = 30
@@ -401,6 +404,8 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
   const blockTimingsRef = useRef([])
   const capturedTimeLeftRef = useRef(timerSecs)
   const choicesRef = useRef(null)
+  const questionStartRef = useRef(Date.now())
+  const sessionIdRef = useRef(null)
 
   const question = words[current]
   const word = question?.word
@@ -418,6 +423,10 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
     setRevealed(false)
     setWordRevealed(false)
     capturedTimeLeftRef.current = timerSecs
+    // 問題表示ログ
+    questionStartRef.current = Date.now()
+    const _q = words[current]
+    if (_q?.word) addStudyLog({ leapNumber: _q.word.leapNumber, word: _q.word.word, eventType: 'studied', mode: 'challenge' })
   }, [current, timerSecs])
 
   // タイマー（CMブレイク中・アナウンス中は停止）
@@ -454,6 +463,12 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
     }
   }, [current, cmData, showMaskAnnouncement]) // eslint-disable-line
 
+  // セッション管理
+  useEffect(() => {
+    startSession('challenge').then(id => { sessionIdRef.current = id })
+    return () => { endSession(sessionIdRef.current) }
+  }, []) // eslint-disable-line
+
   async function handleTimeoutInternal() {
     const existing = await db.cards.where('wordId').equals(word.id).first()
     if (existing) {
@@ -468,6 +483,14 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
         correctCount: 0, incorrectCount: 1, studyCount: 1,
       })
     }
+    resetConsecutiveCorrect()
+    addStudyLog({
+      leapNumber: word.leapNumber,
+      word: word.word,
+      eventType: 'incorrect',
+      mode: 'challenge',
+      responseTime: parseFloat(((Date.now() - questionStartRef.current) / 1000).toFixed(2)),
+    })
     onTimeout(word, streak)
   }
 
@@ -494,8 +517,24 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
     // 押した瞬間に音を鳴らす
     if (isCorrect) {
       playCorrect()
+      incrementConsecutiveCorrect()
+      addStudyLog({
+        leapNumber: word.leapNumber,
+        word: word.word,
+        eventType: 'correct',
+        mode: 'challenge',
+        responseTime: parseFloat(((Date.now() - questionStartRef.current) / 1000).toFixed(2)),
+      })
     } else {
       playWrong()
+      resetConsecutiveCorrect()
+      addStudyLog({
+        leapNumber: word.leapNumber,
+        word: word.word,
+        eventType: 'incorrect',
+        mode: 'challenge',
+        responseTime: parseFloat(((Date.now() - questionStartRef.current) / 1000).toFixed(2)),
+      })
     }
 
     if (isCorrect) {

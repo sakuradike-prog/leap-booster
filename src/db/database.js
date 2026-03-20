@@ -35,3 +35,8 @@ db.version(5).stores({
   // 捕獲単語テーブル（LEAP以外で見かけた単語を登録）
   captured_words: '++id, leapNumber, word, capturedAt',
 })
+
+db.version(6).stores({
+  study_logs:   '++id, leapNumber, eventType, mode, timestamp, hour',
+  session_logs: '++id, date, mode, startTime',
+})

@@ -6,6 +6,8 @@ import { speak } from '../utils/speak'
 import WordDetailScreen from '../components/WordDetailScreen'
 import StreakToast from '../components/StreakToast'
 import SessionCompleteOverlay from '../components/SessionCompleteOverlay'
+import { addStudyLog } from '../utils/studyLog'
+import { startSession, endSession } from '../utils/sessionLog'
 
 const PARTS = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4', 'α']
 const HISTORY_MODE = '最近の学習から'
@@ -325,6 +327,8 @@ function QuizScreen({ questions, onComplete }) {
   const [showAnswer, setShowAnswer] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
   const countedRef = useRef(new Set())
+  const questionStartRef = useRef(Date.now())
+  const sessionIdRef = useRef(null)
   const navigate = useNavigate()
 
   const question = questions[index]
@@ -338,6 +342,8 @@ function QuizScreen({ questions, onComplete }) {
     if (countedRef.current.has(index)) return
     countedRef.current.add(index)
     incrementStudyCount(question.wordId)
+    // 問題ログ（表示時）
+    questionStartRef.current = Date.now()
   }, [index, question?.wordId])
 
   // 答え表示時に自動 TTS
@@ -346,6 +352,12 @@ function QuizScreen({ questions, onComplete }) {
       speak(question.answerEn, 'en-US', 0.85)
     }
   }, [showAnswer, question?.answerEn])
+
+  // セッション管理
+  useEffect(() => {
+    startSession('warmup').then(id => { sessionIdRef.current = id })
+    return () => { endSession(sessionIdRef.current) }
+  }, []) // eslint-disable-line
 
   function handleNext() {
     if (isLast) {
@@ -416,7 +428,17 @@ function QuizScreen({ questions, onComplete }) {
           {!showAnswer ? (
             /* 答えを見るボタン */
             <button
-              onClick={() => setShowAnswer(true)}
+              onClick={() => {
+                const rt = parseFloat(((Date.now() - questionStartRef.current) / 1000).toFixed(2))
+                if (question?.wordObj) addStudyLog({
+                  leapNumber: question.wordObj.leapNumber,
+                  word: question.wordObj.word,
+                  eventType: 'studied',
+                  mode: 'warmup',
+                  responseTime: rt,
+                })
+                setShowAnswer(true)
+              }}
               className="w-full py-5 text-lg font-bold bg-blue-600 hover:bg-blue-500 rounded-2xl transition-colors active:scale-95"
             >
               答えを見る

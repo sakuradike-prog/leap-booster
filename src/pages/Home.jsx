@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUserStats } from '../hooks/useUserStats'
 import { db } from '../db/database'
+import { getConsecutiveCorrect } from '../utils/consecutiveCorrect'
 
 // ---- SVG アイコン（Cモノグラムスタイル）----
 
@@ -97,6 +98,7 @@ export default function Home() {
   const navigate = useNavigate()
   const { stats, loading, freezeNotice, clearFreezeNotice, checkStreak } = useUserStats()
   const [totalStudyCount, setTotalStudyCount] = useState(0)
+  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0)
   const [notice, setNotice] = useState(null)
 
   // 起動時にストリーク状態チェック
@@ -127,6 +129,7 @@ export default function Home() {
       .then(cards => {
         const total = cards.reduce((sum, c) => sum + (c.studyCount ?? 0), 0)
         setTotalStudyCount(total)
+        setConsecutiveCorrect(getConsecutiveCorrect())
       })
       .catch(() => {})
   }, [])
@@ -169,14 +172,31 @@ export default function Home() {
 
         {/* タイトルコピー */}
         <div className="relative z-10">
-          <div style={{
-            fontFamily: "'Bebas Neue', sans-serif",
-            fontSize: 48,
-            color: '#111',
-            lineHeight: .82,
-            letterSpacing: '.02em',
-          }}>
-            英単語
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+            <div style={{
+              fontFamily: "'Bebas Neue', sans-serif",
+              fontSize: 48,
+              color: '#111',
+              lineHeight: .82,
+              letterSpacing: '.02em',
+            }}>
+              英単語
+            </div>
+            {consecutiveCorrect >= 10 && (
+              <div style={{
+                marginBottom: 4,
+                background: 'linear-gradient(90deg, #f59e0b, #ef4444)',
+                borderRadius: 8,
+                padding: '2px 8px',
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#fff',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 2px 6px rgba(239,68,68,0.4)',
+              }}>
+                🔥 {consecutiveCorrect}問連続正解中！
+              </div>
+            )}
           </div>
           {/* VOCABooster 黒帯バナー（全幅）タップでヒートマップへ */}
           <div
