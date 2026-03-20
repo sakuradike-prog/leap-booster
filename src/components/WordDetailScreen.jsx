@@ -263,17 +263,15 @@ export default function WordDetailScreen({ word, onBack, sessionWords = null, in
         {showExamples && examples.length > 0 && (
           <div ref={examplesRef} className="mb-3 flex flex-col gap-3">
             {examples.map((ex, i) => (
-              <div key={i} className="px-4 py-3 bg-amber-900/20 border border-amber-800/40 rounded-xl text-sm">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <p className="text-amber-100 font-bold leading-snug flex-1">{ex.answerEn}</p>
-                  <button
-                    onClick={() => speak(ex.answerEn, 'en-US', 0.8)}
-                    className="text-amber-400 hover:text-amber-200 text-base shrink-0 active:scale-90 transition-transform"
-                  >
-                    🔊
-                  </button>
-                </div>
-                <p className="text-amber-300/80 text-xs">{ex.questionJa}</p>
+              <div key={i} className="bg-amber-900/20 border border-amber-800/40 rounded-xl text-sm overflow-hidden">
+                <button
+                  onClick={() => speak(ex.answerEn, 'en-US', 0.8)}
+                  className="w-full flex items-start justify-between gap-2 px-4 pt-3 pb-2 text-left active:bg-amber-800/20 transition-colors"
+                >
+                  <span className="text-amber-100 font-bold leading-snug flex-1">{ex.answerEn}</span>
+                  <span className="text-amber-400 text-base shrink-0 mt-0.5">🔊</span>
+                </button>
+                <p className="text-amber-300/80 text-xs px-4 pb-3">{ex.questionJa}</p>
               </div>
             ))}
           </div>
