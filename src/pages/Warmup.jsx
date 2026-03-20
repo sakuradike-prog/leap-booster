@@ -11,6 +11,7 @@ import { startSession, endSession } from '../utils/sessionLog'
 
 const PARTS = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4', 'α']
 const HISTORY_MODE = '最近の学習から'
+const NUMBER_MODE = '番号で指定'
 const SESSION_COUNT = 5
 const MAX_SELECT = 5
 
@@ -72,6 +73,21 @@ async function fetchQuestionsForWords(selectedWordObjs) {
   return result
 }
 
+// ── 番号指定でランダム出題 ────────────────────
+async function fetchQuestionsForNumbers(leapNumbers) {
+  const nums = leapNumbers.filter(n => !isNaN(n) && n > 0)
+  if (nums.length === 0) return []
+  const results = []
+  for (const num of nums) {
+    const sentences = await db.warmupSentences.where('leapNumber').equals(num).toArray()
+    if (sentences.length > 0) {
+      const picked = sentences[Math.floor(Math.random() * sentences.length)]
+      results.push(picked)
+    }
+  }
+  return enrichSentences(results)
+}
+
 // ── studyCount +1（問題表示ごと・1問1回のみ）──
 async function incrementStudyCount(wordId) {
   if (!wordId) return
@@ -101,12 +117,15 @@ function SelectScreen({ onStart, onHistorySelect }) {
   const [selectedPart, setSelectedPart] = useState('すべて')
   const [totalCount, setTotalCount] = useState(0)
   const [countLoading, setCountLoading] = useState(true)
+  const [numberInputs, setNumberInputs] = useState(['', '', '', '', ''])
+  const [numberError, setNumberError] = useState('')
   const navigate = useNavigate()
 
   const isHistoryMode = selectedPart === HISTORY_MODE
+  const isNumberMode  = selectedPart === NUMBER_MODE
 
   useEffect(() => {
-    if (isHistoryMode) { setTotalCount(-1); setCountLoading(false); return }
+    if (isHistoryMode || isNumberMode) { setTotalCount(-1); setCountLoading(false); return }
     setCountLoading(true)
     async function load() {
       const count = selectedPart === 'すべて'
@@ -116,17 +135,46 @@ function SelectScreen({ onStart, onHistorySelect }) {
       setCountLoading(false)
     }
     load()
-  }, [selectedPart, isHistoryMode])
+  }, [selectedPart, isHistoryMode, isNumberMode])
+
+  function handleNumberInput(i, val) {
+    // 数字のみ受け付ける
+    if (val !== '' && !/^\d+$/.test(val)) return
+    setNumberInputs(prev => prev.map((v, idx) => idx === i ? val : v))
+    setNumberError('')
+  }
 
   async function handleStart() {
     if (isHistoryMode) {
       onHistorySelect()
       return
     }
+    if (isNumberMode) {
+      const nums = numberInputs
+        .map(v => parseInt(v, 10))
+        .filter(n => !isNaN(n) && n > 0)
+      if (nums.length === 0) {
+        setNumberError('番号を1つ以上入力してください')
+        return
+      }
+      const questions = await fetchQuestionsForNumbers(nums)
+      if (questions.length === 0) {
+        setNumberError('該当する例文が見つかりませんでした')
+        return
+      }
+      onStart(questions)
+      return
+    }
     const questions = await fetchQuestions(selectedPart, SESSION_COUNT)
     if (questions.length === 0) return
     onStart(questions)
   }
+
+  const validNumberCount = numberInputs.filter(v => v !== '' && !isNaN(parseInt(v, 10)) && parseInt(v, 10) > 0).length
+
+  const startDisabled = isNumberMode
+    ? validNumberCount === 0
+    : (!isHistoryMode && totalCount === 0)
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col px-4 py-8">
@@ -140,7 +188,7 @@ function SelectScreen({ onStart, onHistorySelect }) {
           </div>
         </div>
 
-        {!countLoading && totalCount === 0 && !isHistoryMode && (
+        {!countLoading && totalCount === 0 && !isHistoryMode && !isNumberMode && (
           <div className="mb-6 p-4 bg-amber-900/30 border border-amber-700 rounded-xl text-amber-300 text-sm">
             ⚠️ 例文データが未ロードです。アプリを再起動してください。
           </div>
@@ -171,8 +219,47 @@ function SelectScreen({ onStart, onHistorySelect }) {
               <span>🕐</span>
               <span>{HISTORY_MODE}</span>
             </button>
+            <button
+              onClick={() => { setSelectedPart(NUMBER_MODE); setNumberError('') }}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-1 ${
+                isNumberMode
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+            >
+              <span>🔢</span>
+              <span>{NUMBER_MODE}</span>
+            </button>
           </div>
-          {!isHistoryMode && totalCount > 0 && (
+
+          {/* 番号入力エリア */}
+          {isNumberMode && (
+            <div className="mt-4">
+              <p className="text-slate-400 text-xs mb-3">出題するNo.を入力（最大5つ）</p>
+              <div className="flex gap-2">
+                {numberInputs.map((val, i) => (
+                  <input
+                    key={i}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={val}
+                    onChange={e => handleNumberInput(i, e.target.value)}
+                    placeholder={`${i + 1}`}
+                    className="flex-1 min-w-0 bg-slate-800 border border-slate-600 focus:border-amber-500 rounded-xl text-center text-white font-bold py-3 text-sm outline-none transition-colors"
+                  />
+                ))}
+              </div>
+              {numberError && (
+                <p className="text-red-400 text-xs mt-2">{numberError}</p>
+              )}
+              {validNumberCount > 0 && !numberError && (
+                <p className="text-slate-600 text-xs mt-2">{validNumberCount}問を出題します</p>
+              )}
+            </div>
+          )}
+
+          {!isHistoryMode && !isNumberMode && totalCount > 0 && (
             <p className="text-slate-600 text-xs mt-2">{totalCount.toLocaleString()}問から出題</p>
           )}
           {isHistoryMode && (
@@ -182,7 +269,7 @@ function SelectScreen({ onStart, onHistorySelect }) {
 
         <button
           onClick={handleStart}
-          disabled={!isHistoryMode && totalCount === 0}
+          disabled={startDisabled}
           className="w-full py-5 text-xl font-bold bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-2xl transition-colors active:scale-95"
         >
           {isHistoryMode ? '単語を選ぶ →' : 'スタート'}
