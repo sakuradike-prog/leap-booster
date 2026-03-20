@@ -11,6 +11,7 @@ import StreakToast from '../components/StreakToast'
 import SessionCompleteOverlay from '../components/SessionCompleteOverlay'
 import WordBadges from '../components/WordBadges'
 
+
 const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const QUESTIONS = 10
 
@@ -229,7 +230,10 @@ function QuizScreen({ questions, onFinish, onHome }) {
         className="w-full max-w-sm bg-slate-800 rounded-2xl px-6 py-6 text-center mb-6 active:opacity-70 transition-opacity"
         onClick={() => speak(q.word.word, 'en-US', 0.85)}
       >
-        <div className="text-slate-500 text-sm mb-1">{q.word.leapPart} No.{q.word.leapNumber}</div>
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <span className="text-slate-500 text-sm">{q.word.leapPart} No.{q.word.leapNumber}</span>
+          <WordBadges isCaptured={q.isCaptured} />
+        </div>
         <div
           className="font-black tracking-tight mb-1 leading-tight"
           style={{
@@ -242,7 +246,6 @@ function QuizScreen({ questions, onFinish, onHome }) {
         >
           {q.word.word}
         </div>
-        <WordBadges isCaptured={q.isCaptured} />
         <div className="text-slate-500 text-sm mt-1">{q.word.partOfSpeech}</div>
       </div>
 

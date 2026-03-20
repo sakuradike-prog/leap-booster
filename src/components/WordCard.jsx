@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { db } from '../db/database'
-import WordBadges from './WordBadges'
 
 /**
  * WordCard - フリップアニメーション付き単語表示コンポーネント（隠し要素）
@@ -8,7 +7,6 @@ import WordBadges from './WordBadges'
  * Props:
  *   word          - 単語オブジェクト { id, word, ... }
  *   textClassName - 表面の単語テキストに適用する className（フォントサイズは文字長で自動調整）
- *   isCaptured    - 捕獲済みバッジを表示するか
  */
 
 /** 文字数に応じてフォントサイズを調整（画面右切れ防止） */
@@ -20,7 +18,7 @@ function adaptiveFontSize(str) {
   return '1.375rem'                 // text-[22px]
 }
 
-export default function WordCard({ word, textClassName = 'text-5xl font-black tracking-tight', isCaptured = false }) {
+export default function WordCard({ word, textClassName = 'text-5xl font-black tracking-tight' }) {
   const [flipped, setFlipped] = useState(false)
   const [studyCount, setStudyCount] = useState(0)
   const [incorrectCount, setIncorrectCount] = useState(0)
@@ -77,7 +75,6 @@ export default function WordCard({ word, textClassName = 'text-5xl font-black tr
               style={{ width: 28, height: 28, top: -8, right: -28 }}
             />
           )}
-          <WordBadges isCaptured={isCaptured} />
         </div>
 
         {/* 裏面: 学習統計パネル */}

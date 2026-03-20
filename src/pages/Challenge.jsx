@@ -591,7 +591,10 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
       <div className={`w-full max-w-sm bg-slate-800 rounded-3xl px-6 py-5 mb-3 text-center transition-opacity duration-150 ${
         flipping ? 'opacity-0' : 'opacity-100'
       }`}>
-        <div className="text-slate-500 text-sm mb-2">No. {word.leapNumber} ({word.leapPart})</div>
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <span className="text-slate-500 text-sm">No. {word.leapNumber} ({word.leapPart})</span>
+          <WordBadges isCaptured={question.isCaptured} />
+        </div>
         <div
           className="font-black tracking-tight leading-tight mb-1"
           style={{
@@ -604,7 +607,6 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
         >
           {word.word}
         </div>
-        <WordBadges isCaptured={question.isCaptured} />
         <div className="text-slate-500 text-sm mt-1">{word.partOfSpeech}</div>
       </div>
 
