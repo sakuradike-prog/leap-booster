@@ -42,6 +42,7 @@ function PartSelect({ onStart }) {
     }
   })
   const [wordCounts, setWordCounts] = useState({})
+  const [maskMode, setMaskMode] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -94,13 +95,37 @@ function PartSelect({ onStart }) {
         ))}
       </div>
 
-      <button
-        onClick={() => onStart(selected)}
-        disabled={selected.length === 0}
-        className="w-full max-w-sm py-5 text-xl font-bold bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-2xl transition-colors"
-      >
-        スタート
-      </button>
+      {/* スタートボタン + 伏字チェックボックス */}
+      <div className="w-full max-w-sm flex items-center gap-3">
+        <button
+          onClick={() => onStart(selected, maskMode)}
+          disabled={selected.length === 0}
+          className="flex-1 py-5 text-xl font-bold bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-2xl transition-colors"
+        >
+          スタート
+        </button>
+        <label
+          className={`flex flex-col items-center justify-center gap-1 w-16 py-3 rounded-2xl cursor-pointer border-2 transition-all select-none ${
+            maskMode
+              ? 'bg-purple-700 border-purple-400 text-white'
+              : 'bg-slate-800 border-slate-600 text-slate-400'
+          }`}
+        >
+          <span className="text-xl">🙈</span>
+          <span className="text-xs font-bold">伏字</span>
+          <input
+            type="checkbox"
+            checked={maskMode}
+            onChange={e => setMaskMode(e.target.checked)}
+            className="sr-only"
+          />
+        </label>
+      </div>
+      {maskMode && (
+        <p className="text-purple-300 text-xs mt-3 max-w-xs text-center">
+          単語が〇〇〇〇で隠されます。音声を聞いて意味を考えよう！
+        </p>
+      )}
     </div>
   )
 }
@@ -133,8 +158,13 @@ async function saveStudyCountBatch(words, incorrectIds = new Set()) {
   }
 }
 
+// 単語を〇〇〇〇に変換（スペースは保持）
+function maskWord(word) {
+  return word.replace(/[^ ]/g, '○')
+}
+
 // ---- 出題画面 ----
-function QuizScreen({ questions, onFinish, onHome }) {
+function QuizScreen({ questions, onFinish, onHome, maskMode }) {
   const [qIdx, setQIdx] = useState(0)
   const [selectedChoice, setSelectedChoice] = useState(null)
   const [revealed, setRevealed] = useState(false)
@@ -142,6 +172,7 @@ function QuizScreen({ questions, onFinish, onHome }) {
   const [timeLimit] = useState(getQuizTimerSecs)
   const [timeLeft, setTimeLeft] = useState(() => getQuizTimerSecs())
   const [scoreDisplay, setScoreDisplay] = useState(0)
+  const [wordRevealed, setWordRevealed] = useState(false)
 
   const scoreRef = useRef(0)
   const revealedRef = useRef(false)
@@ -155,6 +186,7 @@ function QuizScreen({ questions, onFinish, onHome }) {
     setSelectedChoice(null)
     setRevealed(false)
     setChoicesVisible(false)
+    setWordRevealed(false)
     setTimeLeft(timeLimit)
     speak(questions[qIdx].word.word, 'en-US', 0.85)
 
@@ -249,11 +281,22 @@ function QuizScreen({ questions, onFinish, onHome }) {
               : q.word.word.length <= 17 ? '1.75rem' : '1.375rem',
             overflowWrap: 'break-word',
             wordBreak: 'break-word',
+            letterSpacing: maskMode && !wordRevealed ? '0.05em' : undefined,
           }}
         >
-          {q.word.word}
+          {maskMode && !wordRevealed ? maskWord(q.word.word) : q.word.word}
         </div>
-        <div className="text-slate-500 text-sm mt-1">{q.word.partOfSpeech}</div>
+        <div className="text-slate-500 text-sm mt-1">
+          {maskMode && !wordRevealed ? '?' : q.word.partOfSpeech}
+        </div>
+        {maskMode && !wordRevealed && (
+          <button
+            onClick={e => { e.stopPropagation(); setWordRevealed(true) }}
+            className="mt-3 text-xs text-slate-400 hover:text-white bg-slate-700 hover:bg-slate-600 active:bg-slate-500 px-4 py-1.5 rounded-full transition-colors"
+          >
+            単語を表示
+          </button>
+        )}
       </div>
 
       {!choicesVisible ? (
@@ -374,9 +417,11 @@ export default function DailyQuiz() {
   const [selectedParts, setSelectedParts] = useState([])
   const [streakToast, setStreakToast] = useState(null)
   const [showSessionOverlay, setShowSessionOverlay] = useState(false)
+  const [maskMode, setMaskMode] = useState(false)
   const { recordStudy } = useUserStats()
 
-  async function handleStart(parts) {
+  async function handleStart(parts, mask = false) {
+    setMaskMode(mask)
     const allWords = await db.words.where('leapPart').anyOf(parts).toArray()
     if (allWords.length < 4) return
 
@@ -412,7 +457,7 @@ export default function DailyQuiz() {
     return <PartSelect onStart={handleStart} />
   }
   if (phase === 'playing') {
-    return <QuizScreen questions={questions} onFinish={handleFinish} onHome={() => navigate('/')} />
+    return <QuizScreen questions={questions} onFinish={handleFinish} onHome={() => navigate('/')} maskMode={maskMode} />
   }
   if (phase === 'result') {
     return (
