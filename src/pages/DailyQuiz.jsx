@@ -105,23 +105,27 @@ function PartSelect({ onStart }) {
   )
 }
 
-// ── studyCount +1（出題ごと）──
-async function saveStudyCountBatch(words) {
+// ── studyCount +1 / 不正解は incorrectCount +1 ──
+async function saveStudyCountBatch(words, incorrectIds = new Set()) {
   for (const word of words) {
     if (!word?.id) continue
     try {
       const existing = await db.cards.where('wordId').equals(word.id).first()
       if (existing) {
-        await db.cards.update(existing.id, {
+        const updates = {
           studyCount: (existing.studyCount ?? 0) + 1,
           lastReviewed: new Date(),
-        })
+        }
+        if (incorrectIds.has(word.id)) {
+          updates.incorrectCount = (existing.incorrectCount ?? 0) + 1
+        }
+        await db.cards.update(existing.id, updates)
       } else {
         await db.cards.add({
           wordId: word.id,
           lastReviewed: new Date(),
           correctCount: 0,
-          incorrectCount: 0,
+          incorrectCount: incorrectIds.has(word.id) ? 1 : 0,
           studyCount: 1,
         })
       }
@@ -142,6 +146,7 @@ function QuizScreen({ questions, onFinish, onHome }) {
   const scoreRef = useRef(0)
   const revealedRef = useRef(false)
   const choicesRef = useRef(null)
+  const incorrectIdsRef = useRef(new Set())
 
   const q = questions[qIdx]
 
@@ -159,6 +164,7 @@ function QuizScreen({ questions, onFinish, onHome }) {
           clearInterval(timerId)
           if (!revealedRef.current) {
             revealedRef.current = true
+            incorrectIdsRef.current.add(questions[qIdx].word.id)
             setChoicesVisible(true)
             setSelectedChoice(-1)
             setRevealed(true)
@@ -176,8 +182,8 @@ function QuizScreen({ questions, onFinish, onHome }) {
   async function advance(currentQIdx) {
     const nextIdx = currentQIdx + 1
     if (nextIdx >= questions.length) {
-      // 全問終了 → 全単語の学習履歴を保存
-      await saveStudyCountBatch(questions.map(q => q.word))
+      // 全問終了 → 全単語の学習履歴を保存（不正解は incorrectCount +1）
+      await saveStudyCountBatch(questions.map(q => q.word), incorrectIdsRef.current)
       onFinish({ score: scoreRef.current, words: questions.map(q => q.word) })
     } else {
       setQIdx(nextIdx)
@@ -195,6 +201,7 @@ function QuizScreen({ questions, onFinish, onHome }) {
       setScoreDisplay(s => s + 1)
     } else {
       playWrong()
+      incorrectIdsRef.current.add(q.word.id)
     }
     setSelectedChoice(choiceIdx)
     setRevealed(true)
@@ -270,7 +277,7 @@ function QuizScreen({ questions, onFinish, onHome }) {
           <button
             onClick={async () => {
               // 途中終了 → 出題済み単語（0〜qIdx）の学習履歴を保存
-              await saveStudyCountBatch(questions.slice(0, qIdx + 1).map(q => q.word))
+              await saveStudyCountBatch(questions.slice(0, qIdx + 1).map(q => q.word), incorrectIdsRef.current)
               onHome()
             }}
             className="w-full mt-3 py-3 text-slate-500 hover:text-slate-300 text-sm transition-colors"
