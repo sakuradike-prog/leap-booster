@@ -35,7 +35,9 @@ export function speak(text, lang = 'en-US', rate = 0.85) {
 
     const voices = synth.getVoices()
     if (voices.length > 0) {
+      const savedName = localStorage.getItem('vocaleap_voice_name')
       const englishVoice =
+        (savedName ? voices.find(v => v.name === savedName) : null) ??
         voices.find(v => v.lang.startsWith('en') && v.localService) ??
         voices.find(v => v.lang.startsWith('en')) ??
         null

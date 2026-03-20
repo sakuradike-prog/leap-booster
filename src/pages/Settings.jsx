@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import { importCSVFromUrl } from '../utils/importFromCSV'
@@ -64,6 +64,43 @@ export default function Settings() {
   function handleSpeechToggle(val) {
     setSpeechEnabled(val)
     localStorage.setItem('speechEnabled', String(val))
+  }
+
+  // 音声選択
+  const [voices, setVoices] = useState([])
+  const [selectedVoiceName, setSelectedVoiceName] = useState(
+    () => localStorage.getItem('vocaleap_voice_name') ?? ''
+  )
+
+  useEffect(() => {
+    if (!window.speechSynthesis) return
+    function loadVoices() {
+      const all = window.speechSynthesis.getVoices()
+      const enVoices = all.filter(v => v.lang.startsWith('en'))
+      if (enVoices.length > 0) setVoices(enVoices)
+    }
+    loadVoices()
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoices)
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices)
+  }, [])
+
+  function handleVoiceSelect(name) {
+    setSelectedVoiceName(name)
+    if (name) {
+      localStorage.setItem('vocaleap_voice_name', name)
+    } else {
+      localStorage.removeItem('vocaleap_voice_name')
+    }
+  }
+
+  function handleVoicePreview(voice) {
+    if (!window.speechSynthesis) return
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance('Hello! This is a voice preview.')
+    u.voice = voice
+    u.lang = voice.lang
+    u.rate = 0.85
+    setTimeout(() => window.speechSynthesis.speak(u), 50)
   }
 
   // 単語リスト切り替え
@@ -162,6 +199,66 @@ export default function Settings() {
               <Toggle enabled={speechEnabled} onChange={handleSpeechToggle} />
             </div>
           </div>
+
+          {/* 音声選択 */}
+          {voices.length > 0 && (
+            <div className="mt-4">
+              <div className="text-slate-400 text-xs font-semibold mb-2 uppercase tracking-wider">読み上げ声の選択</div>
+              <div className="flex flex-col gap-1 max-h-64 overflow-y-auto pr-1">
+                {/* 自動選択 */}
+                <button
+                  type="button"
+                  onClick={() => handleVoiceSelect('')}
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-colors ${
+                    selectedVoiceName === ''
+                      ? 'bg-blue-600/30 border border-blue-500'
+                      : 'bg-slate-800 border border-slate-700 hover:bg-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    {selectedVoiceName === '' && <span className="text-blue-400 text-xs">✓</span>}
+                    <div className="min-w-0">
+                      <div className="text-slate-200 text-sm font-medium">自動選択</div>
+                      <div className="text-slate-500 text-xs">デバイスのデフォルト英語音声</div>
+                    </div>
+                  </div>
+                </button>
+
+                {/* 各音声 */}
+                {voices.map(voice => (
+                  <div
+                    key={voice.name}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
+                      selectedVoiceName === voice.name
+                        ? 'bg-blue-600/30 border border-blue-500'
+                        : 'bg-slate-800 border border-slate-700'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleVoiceSelect(voice.name)}
+                      className="flex items-center gap-2 min-w-0 flex-1 text-left"
+                    >
+                      {selectedVoiceName === voice.name && <span className="text-blue-400 text-xs flex-shrink-0">✓</span>}
+                      <div className="min-w-0">
+                        <div className="text-slate-200 text-sm font-medium truncate">{voice.name}</div>
+                        <div className="text-slate-500 text-xs">
+                          {voice.lang}{voice.localService ? ' · ローカル' : ' · オンライン'}
+                        </div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleVoicePreview(voice)}
+                      className="ml-2 flex-shrink-0 px-2.5 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors"
+                    >
+                      🔊
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* 4択練習 タイマー設定 */}
