@@ -420,9 +420,10 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
     capturedTimeLeftRef.current = timerSecs
   }, [current, timerSecs])
 
-  // タイマー（CMブレイク中は停止）
+  // タイマー（CMブレイク中・アナウンス中は停止）
   useEffect(() => {
     if (cmData) return
+    if (showMaskAnnouncement) return
     doneRef.current = false
     setTimeLeft(timerSecs)
 
@@ -441,16 +442,17 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
     }, 1000)
 
     return () => clearInterval(timerId)
-  }, [current, cmData]) // eslint-disable-line
+  }, [current, cmData, showMaskAnnouncement]) // eslint-disable-line
 
-  // 問題表示時に単語を読み上げ
+  // 問題表示時に単語を読み上げ（アナウンス中は停止）
   useEffect(() => {
     if (cmData) return
+    if (showMaskAnnouncement) return
     if (word?.word) speak(word.word, 'en-US', 0.85)
     return () => {
       try { window.speechSynthesis?.cancel() } catch { /* ignore */ }
     }
-  }, [current, cmData]) // eslint-disable-line
+  }, [current, cmData, showMaskAnnouncement]) // eslint-disable-line
 
   async function handleTimeoutInternal() {
     const existing = await db.cards.where('wordId').equals(word.id).first()
@@ -585,7 +587,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
             // 21問目突入 → 伏字アナウンスを2.5秒表示してから出題へ
             setCMData(null)
             setShowMaskAnnouncement(true)
-            setTimeout(() => setShowMaskAnnouncement(false), 2500)
+            setTimeout(() => setShowMaskAnnouncement(false), 3500)
           } else {
             setCMData(null)
           }
