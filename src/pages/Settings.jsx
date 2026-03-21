@@ -4,6 +4,7 @@ import { db } from '../db/database'
 import { importCSVFromUrl } from '../utils/importFromCSV'
 import { loadExamples } from '../utils/loadExamples'
 import { useAuth } from '../hooks/useAuth'
+import { fetchUserStats, syncDisplayName } from '../utils/supabaseSync'
 
 const WORD_LISTS = [
   { id: 'new', label: 'LEAP改訂版（2300語）', file: '/data/leap_words.csv' },
@@ -45,6 +46,34 @@ export default function Settings() {
   const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth()
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetDone, setResetDone] = useState(false)
+
+  // ニックネーム
+  const [displayName, setDisplayName] = useState('')
+  const [displayNameSaving, setDisplayNameSaving] = useState(false)
+  const [displayNameSaved, setDisplayNameSaved] = useState(false)
+
+  useEffect(() => {
+    if (!user) return
+    fetchUserStats(user.id).then(stats => {
+      if (stats?.display_name) {
+        setDisplayName(stats.display_name)
+      } else {
+        // Googleアカウント名をデフォルト値として提案
+        const googleName = user.user_metadata?.full_name || user.user_metadata?.name || ''
+        setDisplayName(googleName)
+      }
+    })
+  }, [user])
+
+  async function handleSaveDisplayName() {
+    if (!user || !displayName.trim()) return
+    setDisplayNameSaving(true)
+    setDisplayNameSaved(false)
+    await syncDisplayName(user.id, displayName.trim())
+    setDisplayNameSaving(false)
+    setDisplayNameSaved(true)
+    setTimeout(() => setDisplayNameSaved(false), 3000)
+  }
 
   // タイマー設定
   const [challengeTimer, setChallengeTimer] = useState(getStoredTimer)
@@ -398,6 +427,32 @@ export default function Settings() {
               <div className="p-4 bg-slate-800 rounded-xl text-sm text-slate-300">
                 ✅ ログイン中：{user.email}
               </div>
+
+              {/* ニックネーム */}
+              <div className="p-4 bg-slate-800 rounded-xl flex flex-col gap-2">
+                <label className="text-xs text-slate-400 font-semibold">
+                  ランキング表示名（ニックネーム）
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={displayName}
+                    onChange={e => setDisplayName(e.target.value.slice(0, 20))}
+                    maxLength={20}
+                    placeholder="ニックネームを入力"
+                    className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    onClick={handleSaveDisplayName}
+                    disabled={displayNameSaving || !displayName.trim()}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg text-sm font-bold transition-colors"
+                  >
+                    {displayNameSaving ? '…' : displayNameSaved ? '✓' : '保存'}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-600">ランキング画面で表示される名前です（最大20文字）</p>
+              </div>
+
               <button
                 onClick={signOut}
                 className="w-full py-4 text-base font-bold bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl transition-colors"
@@ -414,7 +469,7 @@ export default function Settings() {
                 Googleでログイン
               </button>
               <p className="text-xs text-slate-500">
-                ログインするとデータをクラウドに保存できます（準備中）
+                ログインするとデータのクラウド保存・ランキング参加ができます
               </p>
             </div>
           )}

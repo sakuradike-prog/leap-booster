@@ -368,6 +368,20 @@ export default function Home() {
             sub="授業ウォームアップ"
           />
 
+          <MenuButton
+            onClick={() => navigate('/rankings')}
+            bgColor="#7c3aed"
+            icon={
+              <svg width="44" height="44" viewBox="0 0 60 60" fill="none">
+                <rect x="2" y="2" width="56" height="56" rx="13"
+                  fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.35)" strokeWidth="2.5"/>
+                <text x="30" y="42" fontSize="30" textAnchor="middle">🏆</text>
+              </svg>
+            }
+            label="ランキング"
+            sub="ポイント・ストリーク・チャレンジ"
+          />
+
           {/* 学習記録 + 設定（横並び） */}
           <div className="flex gap-2">
             <button

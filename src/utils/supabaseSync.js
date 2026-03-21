@@ -84,6 +84,33 @@ export async function syncStudyLog(userId, log) {
   }
 }
 
+/** display_nameをSupabaseに保存（ニックネーム） */
+export async function syncDisplayName(userId, displayName) {
+  if (!userId) return
+  try {
+    const { error } = await supabase
+      .from('user_stats')
+      .upsert({ user_id: userId, display_name: displayName }, { onConflict: 'user_id' })
+    if (error) console.warn('[Vocaleap] display_name sync失敗:', error.message)
+  } catch (err) {
+    console.warn('[Vocaleap] display_name sync例外:', err)
+  }
+}
+
+/** ランキング用：全ユーザーのstatsを取得（認証済みユーザーのみ閲覧可） */
+export async function fetchRankings() {
+  try {
+    const { data, error } = await supabase
+      .from('user_stats')
+      .select('user_id, display_name, total_points, current_streak, longest_streak, challenge_clear_count')
+      .limit(200)
+    if (error) { console.warn('[Vocaleap] rankings fetch失敗:', error.message); return [] }
+    return data ?? []
+  } catch {
+    return []
+  }
+}
+
 /** session_log 1件をSupabaseに送る（fire-and-forget用） */
 export async function syncSessionLog(userId, session) {
   if (!userId) return
