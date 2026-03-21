@@ -102,7 +102,7 @@ export async function fetchRankings() {
   try {
     const { data, error } = await supabase
       .from('user_stats')
-      .select('user_id, display_name, total_points, current_streak, longest_streak, challenge_clear_count')
+      .select('user_id, display_name, total_points, current_streak, longest_streak, challenge_clear_count, last_study_date, today_points, today_points_date')
       .limit(200)
     if (error) { console.warn('[Vocaleap] rankings fetch失敗:', error.message); return [] }
     return data ?? []

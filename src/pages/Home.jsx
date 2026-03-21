@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUserStats } from '../hooks/useUserStats'
+import { useAuth } from '../hooks/useAuth'
 import { db } from '../db/database'
 import { getConsecutiveCorrect } from '../utils/consecutiveCorrect'
+
+const TEACHER_EMAIL = 'suyama.kennichi@nihon-u.ac.jp'
 
 // ---- SVG アイコン（Cモノグラムスタイル）----
 
@@ -97,6 +100,8 @@ function MenuButton({ onClick, bgColor, textDark = false, icon, label, sub }) {
 export default function Home() {
   const navigate = useNavigate()
   const { stats, loading, freezeNotice, clearFreezeNotice, checkStreak } = useUserStats()
+  const { user } = useAuth()
+  const isTeacher = user?.email === TEACHER_EMAIL
   const [totalStudyCount, setTotalStudyCount] = useState(0)
   const [consecutiveCorrect, setConsecutiveCorrect] = useState(0)
   const [notice, setNotice] = useState(null)
@@ -381,6 +386,23 @@ export default function Home() {
             label="ランキング"
             sub="ポイント・ストリーク・チャレンジ"
           />
+
+          {/* 先生ダッシュボード（先生アカウントのみ表示） */}
+          {isTeacher && (
+            <MenuButton
+              onClick={() => navigate('/teacher')}
+              bgColor="#0f766e"
+              icon={
+                <svg width="44" height="44" viewBox="0 0 60 60" fill="none">
+                  <rect x="2" y="2" width="56" height="56" rx="13"
+                    fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.3)" strokeWidth="2.5"/>
+                  <text x="30" y="42" fontSize="28" textAnchor="middle">📊</text>
+                </svg>
+              }
+              label="先生ダッシュボード"
+              sub="生徒の学習状況を確認"
+            />
+          )}
 
           {/* 学習記録 + 設定（横並び） */}
           <div className="flex gap-2">

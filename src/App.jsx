@@ -12,6 +12,7 @@ import CapturePage from './pages/CapturePage'
 import StreakInfoPage from './pages/StreakInfoPage'
 import PointsInfoPage from './pages/PointsInfoPage'
 import Rankings from './pages/Rankings'
+import TeacherDashboard from './pages/TeacherDashboard'
 import { db } from './db/database'
 import { importCSVFromUrl } from './utils/importFromCSV'
 import { loadWordFamilies } from './utils/loadWordFamilies'
@@ -96,6 +97,7 @@ function App() {
         <Route path="/streak-info" element={<StreakInfoPage />} />
         <Route path="/points-info" element={<PointsInfoPage />} />
         <Route path="/rankings" element={<Rankings />} />
+        <Route path="/teacher" element={<TeacherDashboard />} />
       </Routes>
     </BrowserRouter>
   )
