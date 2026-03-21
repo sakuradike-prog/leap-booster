@@ -16,7 +16,7 @@ export async function startSession(mode) {
       duration: null,
     })
     return id
-  } catch { return null }
+  } catch (err) { console.warn('[Vocaleap] セッションログ保存失敗:', err); return null }
 }
 
 /** セッション終了。duration（秒）を記録する */
@@ -28,5 +28,5 @@ export async function endSession(sessionId) {
     const endTime = Date.now()
     const duration = Math.round((endTime - session.startTime) / 1000)
     await db.session_logs.update(sessionId, { endTime, duration })
-  } catch { /* ignore */ }
+  } catch (err) { console.warn('[Vocaleap] セッションログ保存失敗:', err) }
 }

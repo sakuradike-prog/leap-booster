@@ -130,7 +130,7 @@ export default function Settings() {
   }
 
   async function handleReset() {
-    await db.transaction('rw', [db.words, db.cards, db.challengeHistory, db.warmupHistory, db.userStats, db.warmupSentences], async () => {
+    await db.transaction('rw', [db.words, db.cards, db.challengeHistory, db.warmupHistory, db.userStats, db.warmupSentences, db.study_logs, db.session_logs, db.captured_words], async () => {
       await Promise.all([
         db.words.clear(),
         db.cards.clear(),
@@ -138,6 +138,9 @@ export default function Settings() {
         db.warmupHistory.clear(),
         db.userStats.clear(),
         db.warmupSentences.clear(),
+        db.study_logs.clear(),
+        db.session_logs.clear(),
+        db.captured_words.clear(),
       ])
     })
     setShowResetConfirm(false)

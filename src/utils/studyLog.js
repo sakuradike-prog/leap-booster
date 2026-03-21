@@ -23,5 +23,5 @@ export async function addStudyLog({ leapNumber, word, eventType, mode, responseT
       responseTime,
       hintUsed,
     })
-  } catch { /* ignore */ }
+  } catch (err) { console.warn('[Vocaleap] 学習ログ保存失敗:', err) }
 }
