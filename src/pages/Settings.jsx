@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import { importCSVFromUrl } from '../utils/importFromCSV'
 import { loadExamples } from '../utils/loadExamples'
+import { useAuth } from '../hooks/useAuth'
 
 const WORD_LISTS = [
   { id: 'new', label: 'LEAP改訂版（2300語）', file: '/data/leap_words.csv' },
@@ -41,6 +42,7 @@ function Toggle({ enabled, onChange }) {
 
 export default function Settings() {
   const navigate = useNavigate()
+  const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth()
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetDone, setResetDone] = useState(false)
 
@@ -379,6 +381,42 @@ export default function Settings() {
             >
               ✨ αパートを追加する（300語）
             </button>
+          )}
+        </section>
+
+        {/* アカウント */}
+        <section className="mb-8">
+          <h2 className="text-lg font-bold text-slate-200 mb-4 pb-2 border-b border-slate-700">
+            🔐 アカウント
+          </h2>
+          {authLoading ? (
+            <div className="p-4 bg-slate-800 rounded-xl text-slate-300 text-center text-sm">
+              読み込み中...
+            </div>
+          ) : user ? (
+            <div className="flex flex-col gap-3">
+              <div className="p-4 bg-slate-800 rounded-xl text-sm text-slate-300">
+                ✅ ログイン中：{user.email}
+              </div>
+              <button
+                onClick={signOut}
+                className="w-full py-4 text-base font-bold bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl transition-colors"
+              >
+                ログアウト
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={signInWithGoogle}
+                className="w-full py-4 text-base font-bold bg-blue-700 hover:bg-blue-600 border border-blue-500 rounded-xl transition-colors"
+              >
+                Googleでログイン
+              </button>
+              <p className="text-xs text-slate-500">
+                ログインするとデータをクラウドに保存できます（準備中）
+              </p>
+            </div>
           )}
         </section>
 
