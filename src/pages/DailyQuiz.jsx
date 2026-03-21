@@ -316,13 +316,14 @@ function QuizScreen({ questions, onFinish, onHome, maskMode }) {
         <div
           className="font-black tracking-tight mb-1 leading-tight"
           style={maskMode && !wordRevealed ? {
-            // 伏字: ○は幅広いので文字数に応じて小さめに設定、1行で収まるよう
+            // 伏字: ○は幅広いので文字数に応じて小さめに設定
             fontSize: q.word.word.length <= 5  ? '2.25rem'
               : q.word.word.length <= 8  ? '1.875rem'
               : q.word.word.length <= 11 ? '1.5rem'
               : q.word.word.length <= 15 ? '1.25rem' : '1rem',
             letterSpacing: '0.05em',
-            whiteSpace: 'nowrap',
+            overflowWrap: 'anywhere',
+            wordBreak: 'break-word',
           } : {
             fontSize: q.word.word.length <= 10 ? '3rem'
               : q.word.word.length <= 13 ? '2.25rem'

@@ -693,7 +693,8 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
               : word.word.length <= 11 ? '1.5rem'
               : word.word.length <= 15 ? '1.25rem' : '1rem',
             letterSpacing: '0.05em',
-            whiteSpace: 'nowrap',
+            overflowWrap: 'anywhere',
+            wordBreak: 'break-word',
             color: '#c4b5fd',
           } : {
             fontSize: word.word.length <= 10 ? '3rem'
