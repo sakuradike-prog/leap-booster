@@ -1,5 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
 import { db } from '../db/database'
+import { supabase } from '../lib/supabase'
+import { syncUserStats, fetchUserStats, fromRemote } from '../utils/supabaseSync'
+
+/** Supabaseのユーザーを取得（非同期、失敗時はnull） */
+async function getCurrentUserId() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.user?.id ?? null
+  } catch {
+    return null
+  }
+}
 
 const DEFAULT_STATS = {
   id: 1,
@@ -55,10 +67,27 @@ export function useUserStats() {
   const [freezeNotice, setFreezeNotice] = useState(null)
 
   useEffect(() => {
-    db.userStats.get(1).then(s => {
-      if (s) setStats({ ...DEFAULT_STATS, ...s })
+    async function loadStats() {
+      const localData = await db.userStats.get(1)
+      if (localData) setStats({ ...DEFAULT_STATS, ...localData })
+
+      // ログイン済みならSupabaseと同期
+      const userId = await getCurrentUserId()
+      if (userId) {
+        const remote = await fetchUserStats(userId)
+        if (remote) {
+          const remotePts = remote.total_points ?? 0
+          const localPts = localData?.totalPoints ?? 0
+          if (remotePts > localPts) {
+            const merged = fromRemote(remote)
+            await db.userStats.put(merged)
+            setStats({ ...DEFAULT_STATS, ...merged })
+          }
+        }
+      }
       setLoading(false)
-    })
+    }
+    loadStats()
   }, [])
 
   // アプリ起動時にストリーク状態をチェック（Home の useEffect から呼ぶ）
@@ -87,6 +116,8 @@ export function useUserStats() {
       await db.userStats.put(updated)
       setStats(updated)
       setFreezeNotice('freeze_used')
+      // Supabase同期（fire-and-forget）
+      getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
       return { freezeUsed: true }
     }
 
@@ -96,6 +127,8 @@ export function useUserStats() {
     await db.userStats.put(updated)
     setStats(updated)
     if (oldStreak > 0) setFreezeNotice('streak_broken')
+    // Supabase同期（fire-and-forget）
+    getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
     return { streakBroken: true, oldStreak }
   }, [])
 
@@ -119,6 +152,8 @@ export function useUserStats() {
     await db.userStats.put(updated)
     setStats(updated)
     if (freezeEarned) setFreezeNotice('freeze_earned')
+    // Supabase同期（fire-and-forget）
+    getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
     return { ...updated, freezeEarned, streakUpdated: !wasAlreadyToday }
   }, [])
 
@@ -152,6 +187,8 @@ export function useUserStats() {
     await db.userStats.put(updated)
     setStats(updated)
     if (freezeEarned) setFreezeNotice('freeze_earned')
+    // Supabase同期（fire-and-forget）
+    getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
     return { ...updated, freezeEarned, streakUpdated: !wasAlreadyToday }
   }, [])
 
@@ -177,6 +214,8 @@ export function useUserStats() {
     await db.userStats.put(updated)
     setStats(updated)
     if (freezeEarned) setFreezeNotice('freeze_earned')
+    // Supabase同期（fire-and-forget）
+    getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
     return { ...updated, freezeEarned, streakUpdated: !wasAlreadyToday }
   }, [])
 
@@ -197,6 +236,8 @@ export function useUserStats() {
     }
     await db.userStats.put(updated)
     setStats(updated)
+    // Supabase同期（fire-and-forget）
+    getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
     return updated
   }, [])
 

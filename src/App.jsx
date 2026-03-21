@@ -16,10 +16,22 @@ import { importCSVFromUrl } from './utils/importFromCSV'
 import { loadWordFamilies } from './utils/loadWordFamilies'
 import { loadRoots } from './utils/loadRoots'
 import { loadExamples } from './utils/loadExamples'
+import { supabase } from './lib/supabase'
+import { migrateLocalDataToServer } from './utils/migrateToServer'
 
 function App() {
   const [ready, setReady] = useState(false)
   const [error, setError] = useState(null)
+
+  // ログイン状態を監視してデータ移行を実行
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user?.id) {
+        migrateLocalDataToServer(session.user.id)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   useEffect(() => {
     async function initDB() {

@@ -1,4 +1,6 @@
 import { db } from '../db/database'
+import { supabase } from '../lib/supabase'
+import { syncStudyLog } from './supabaseSync'
 
 /**
  * 学習ログを1件記録する
@@ -12,16 +14,22 @@ import { db } from '../db/database'
  */
 export async function addStudyLog({ leapNumber, word, eventType, mode, responseTime = null, hintUsed = null }) {
   const now = new Date()
+  const log = {
+    leapNumber,
+    word,
+    eventType,
+    mode,
+    timestamp: now.getTime(),
+    hour: now.getHours(),
+    responseTime,
+    hintUsed,
+  }
   try {
-    await db.study_logs.add({
-      leapNumber,
-      word,
-      eventType,
-      mode,
-      timestamp: now.getTime(),
-      hour: now.getHours(),
-      responseTime,
-      hintUsed,
-    })
+    await db.study_logs.add(log)
   } catch (err) { console.warn('[Vocaleap] 学習ログ保存失敗:', err) }
+
+  // Supabase同期（fire-and-forget）
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user?.id) syncStudyLog(session.user.id, log)
+  })
 }
