@@ -65,7 +65,7 @@ export default function TeacherDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white px-4 py-8">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-[600px] mx-auto">
 
         {/* ヘッダー */}
         <div className="flex items-center mb-6">

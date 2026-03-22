@@ -112,7 +112,7 @@ function WordFamilySection({ word }) {
   if (!family) return null
 
   return (
-    <div className="w-full max-w-sm md:max-w-2xl mt-3">
+    <div className="w-full max-w-sm md:max-w-[600px] mt-3">
       <button
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between px-4 py-2 rounded-xl bg-slate-700/60 hover:bg-slate-700 transition-colors text-sm"
@@ -166,13 +166,13 @@ function DailyStartScreen({ onStart, timerSecs, alreadyDone, alphaCount }) {
       <p className="text-slate-500 text-sm mb-6">⏱ 1問 {timerSecs} 秒・時間切れで終了</p>
 
       {alreadyDone && (
-        <div className="w-full max-w-sm md:max-w-2xl mb-5 px-4 py-3 bg-amber-900/30 border border-amber-700 rounded-xl text-amber-300 text-sm text-center">
+        <div className="w-full max-w-sm md:max-w-[600px] mb-5 px-4 py-3 bg-amber-900/30 border border-amber-700 rounded-xl text-amber-300 text-sm text-center">
           今日はすでにクリア済みです。明日また挑戦しよう！
         </div>
       )}
 
       {/* ポイント説明 */}
-      <div className="w-full max-w-sm md:max-w-2xl bg-slate-800 rounded-xl px-4 py-4 mb-4 text-sm">
+      <div className="w-full max-w-sm md:max-w-[600px] bg-slate-800 rounded-xl px-4 py-4 mb-4 text-sm">
         <div className="text-slate-400 font-bold mb-3">ポイント計算</div>
         <div className="flex justify-between mb-1">
           <span className="text-slate-300">通常単語 1問正解</span>
@@ -192,7 +192,7 @@ function DailyStartScreen({ onStart, timerSecs, alreadyDone, alphaCount }) {
 
       {/* αチェックボックス（α単語がDBに存在する場合のみ表示） */}
       {hasAlpha && (
-        <div className="w-full max-w-sm md:max-w-2xl mb-5">
+        <div className="w-full max-w-sm md:max-w-[600px] mb-5">
           <label className={`flex items-center gap-3 px-4 py-4 bg-slate-800 border-2 rounded-xl cursor-pointer transition-all ${
             includeAlpha ? 'border-purple-500 bg-purple-900/20' : 'border-slate-600'
           } ${alreadyDone ? 'opacity-50 cursor-not-allowed' : ''}`}>
@@ -216,7 +216,7 @@ function DailyStartScreen({ onStart, timerSecs, alreadyDone, alphaCount }) {
       <button
         onClick={() => onStart(includeAlpha)}
         disabled={alreadyDone}
-        className="w-full max-w-sm md:max-w-2xl py-5 text-xl font-bold bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-2xl transition-colors"
+        className="w-full max-w-sm md:max-w-[600px] py-5 text-xl font-bold bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-2xl transition-colors"
       >
         スタート
       </button>
@@ -336,7 +336,7 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd, continu
         <h2 className="text-xl font-bold text-slate-200 mb-2">CM Break 終了</h2>
         <p className="text-slate-500 text-sm mb-8">次のアクションを選んでください</p>
 
-        <div className="w-full max-w-sm md:max-w-2xl flex flex-col gap-4">
+        <div className="w-full max-w-sm md:max-w-[600px] flex flex-col gap-4">
           {/* 繰り返す */}
           <button
             onClick={handleRepeat}
@@ -655,7 +655,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
       </div>
 
       {/* 正解進捗バー */}
-      <div className="w-full max-w-sm md:max-w-2xl h-2 bg-slate-700 rounded-full mb-4 overflow-hidden">
+      <div className="w-full max-w-sm md:max-w-[600px] h-2 bg-slate-700 rounded-full mb-4 overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-300 ${
             streak >= 28 ? 'bg-red-500' : streak >= 20 ? 'bg-amber-500' : 'bg-blue-500'
@@ -665,7 +665,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
       </div>
 
       {/* タイマー */}
-      <div className="w-full max-w-sm md:max-w-2xl mb-4">
+      <div className="w-full max-w-sm md:max-w-[600px] mb-4">
         <div className={`text-center text-2xl font-black mb-2 transition-colors ${
           urgentTimer ? 'text-red-400 animate-pulse' : 'text-slate-400'
         }`}>
@@ -682,7 +682,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
       </div>
 
       {/* 単語カード */}
-      <div className={`w-full max-w-sm md:max-w-2xl rounded-3xl px-6 py-5 mb-3 text-center transition-opacity duration-150 ${
+      <div className={`w-full max-w-sm md:max-w-[600px] rounded-3xl px-6 py-5 mb-3 text-center transition-opacity duration-150 ${
         flipping ? 'opacity-0' : 'opacity-100'
       } ${streak >= 20 ? 'bg-purple-950/70 border border-purple-800' : 'bg-slate-800'}`}>
         <div className="flex items-center justify-center gap-2 mb-2">
@@ -732,7 +732,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
       </div>
 
       {/* ボタンエリア */}
-      <div ref={choicesRef} className="w-full max-w-sm md:max-w-2xl mt-4 flex flex-col gap-2">
+      <div ref={choicesRef} className="w-full max-w-sm md:max-w-[600px] mt-4 flex flex-col gap-2">
         {!choicesVisible ? (
           /* Stage 1 */
           <>
@@ -811,7 +811,7 @@ function TimeoutScreen({ word, streak, reason, earnedPoints, capturedCount, onRe
 
       {/* ポイント獲得 */}
       {earnedPoints > 0 && (
-        <div className="w-full max-w-sm md:max-w-2xl bg-blue-900/40 border border-blue-700 rounded-2xl px-6 py-4 mb-4">
+        <div className="w-full max-w-sm md:max-w-[600px] bg-blue-900/40 border border-blue-700 rounded-2xl px-6 py-4 mb-4">
           <p className="text-blue-300 text-xs font-bold uppercase tracking-wider mb-2">獲得ポイント</p>
           <div className="text-4xl font-black text-blue-400 mb-2">+{earnedPoints} pt</div>
           <div className="flex justify-center gap-4 text-xs text-slate-400">
@@ -821,7 +821,7 @@ function TimeoutScreen({ word, streak, reason, earnedPoints, capturedCount, onRe
         </div>
       )}
 
-      <div className="w-full max-w-sm md:max-w-2xl bg-amber-900/30 border border-amber-700 rounded-2xl px-6 py-5 mb-8">
+      <div className="w-full max-w-sm md:max-w-[600px] bg-amber-900/30 border border-amber-700 rounded-2xl px-6 py-5 mb-8">
         {isHonest ? (
           <>
             <p className="text-amber-200 text-lg font-bold leading-relaxed">
@@ -843,7 +843,7 @@ function TimeoutScreen({ word, streak, reason, earnedPoints, capturedCount, onRe
         )}
       </div>
 
-      <div className="w-full max-w-sm md:max-w-2xl flex flex-col gap-4">
+      <div className="w-full max-w-sm md:max-w-[600px] flex flex-col gap-4">
         <button
           onClick={onHome}
           className="w-full py-5 text-xl font-bold bg-slate-700 hover:bg-slate-600 rounded-2xl transition-colors"
@@ -1038,7 +1038,7 @@ function ClearScreen({ parts, elapsed, earnedPoints, capturedCount, normalCount,
       <HeavyConfetti />
       <StarBurst />
 
-      <div className="relative z-10 flex flex-col items-center w-full max-w-sm md:max-w-2xl">
+      <div className="relative z-10 flex flex-col items-center w-full max-w-sm md:max-w-[600px]">
         {/* トロフィー */}
         <div style={{ fontSize: 88, lineHeight: 1, animation: 'clrTrophy .65s cubic-bezier(0.34,1.56,0.64,1) both' }}>
           🏆

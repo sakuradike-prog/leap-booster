@@ -205,7 +205,7 @@ export default function WordDetailScreen({ word, onBack, sessionWords = null, in
         )}
       </div>
 
-      <div className="max-w-sm md:max-w-2xl mx-auto text-white flex flex-col px-5 py-6 overflow-y-auto">
+      <div className="max-w-sm md:max-w-[600px] mx-auto text-white flex flex-col px-5 py-6 overflow-y-auto">
 
         {/* 単語（WordCard フリップ） */}
         <div className="text-center mb-5">

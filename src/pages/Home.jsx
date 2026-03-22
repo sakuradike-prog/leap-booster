@@ -145,7 +145,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#fff8e8' }}>
-    <div className="max-w-2xl mx-auto min-h-screen flex flex-col">
+    <div className="max-w-[600px] mx-auto min-h-screen flex flex-col">
 
       {/* トースト通知 */}
       {notice && (

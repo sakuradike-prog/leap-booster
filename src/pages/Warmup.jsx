@@ -191,7 +191,7 @@ function SelectScreen({ onStart, onHistorySelect }) {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col px-4 py-8">
-      <div className="max-w-2xl mx-auto w-full">
+      <div className="max-w-[600px] mx-auto w-full">
 
         <div className="flex items-center mb-8">
           <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white mr-4 text-lg">← 戻る</button>
@@ -359,7 +359,7 @@ function HistorySelectScreen({ onStart, onBack }) {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col px-4 py-8">
-      <div className="max-w-2xl mx-auto w-full flex flex-col h-full">
+      <div className="max-w-[600px] mx-auto w-full flex flex-col h-full">
 
         <div className="flex items-center mb-2">
           <button onClick={onBack} className="text-slate-400 hover:text-white mr-4 text-lg">← 戻る</button>
@@ -607,7 +607,7 @@ function SummaryScreen({ questions, onRetry, onHome }) {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col px-4 py-8">
-      <div className="max-w-2xl mx-auto w-full">
+      <div className="max-w-[600px] mx-auto w-full">
         <h1 className="text-2xl font-bold text-amber-400 mb-1">お疲れ様でした！</h1>
         <p className="text-slate-400 text-sm mb-1">通しで言えるかな？</p>
         <p className="text-slate-600 text-xs mb-6">（日本語をタップすると英文に切り替わります）</p>
