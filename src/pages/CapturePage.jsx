@@ -268,7 +268,8 @@ export default function CapturePage() {
   const canRegister = !!foundWord
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col px-5 py-6">
+    <div className="min-h-screen bg-slate-950 text-white">
+      <div className="max-w-[600px] mx-auto w-full flex flex-col px-5 py-6">
       <button
         onClick={() => navigate(-1)}
         className="text-slate-400 hover:text-white text-sm mb-6 text-left"
@@ -406,6 +407,7 @@ export default function CapturePage() {
           有効な No. を入力してください
         </p>
       )}
+      </div>
     </div>
   )
 }

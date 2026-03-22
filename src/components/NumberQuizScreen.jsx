@@ -56,6 +56,7 @@ export default function NumberQuizScreen({ startWord, onBack }) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col">
+      <div className="max-w-[600px] w-full mx-auto flex flex-col flex-1">
       {/* 2カラムメインエリア */}
       <div className="flex-1 flex">
         {/* 左カラム: 現在の単語 */}
@@ -146,6 +147,7 @@ export default function NumberQuizScreen({ startWord, onBack }) {
         >
           ホームへ戻る
         </button>
+      </div>
       </div>
     </div>
   )
