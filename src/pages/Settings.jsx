@@ -107,7 +107,25 @@ export default function Settings() {
     if (!window.speechSynthesis) return
     function loadVoices() {
       const all = window.speechSynthesis.getVoices()
-      const enVoices = all.filter(v => v.lang === 'en-US' || v.lang === 'en-GB')
+
+      // ノベルティ・非人間・かすれ声などをブロック
+      const NOVELTY = [
+        'bad news', 'bubbles', 'cellos', 'good news', 'jester', 'junior',
+        'organ', 'trinoids', 'whisper', 'wobble', 'zarvox', 'bells', 'boing',
+        'bottle', 'deranged', 'hysterical', 'pipe organ', 'spectral',
+        'superstar', 'tuvan', 'albert', 'fred', 'ralph', 'kathy', 'bruce',
+        '震え', 'かすれ',
+      ]
+      const isNovelty = (v) => {
+        const n = v.name.toLowerCase()
+        return NOVELTY.some(w => n.includes(w))
+      }
+
+      const enVoices = all
+        .filter(v => (v.lang === 'en-US' || v.lang === 'en-GB') && !isNovelty(v))
+        // ローカル保存（iOSダウンロード高品質声含む）を上位に表示
+        .sort((a, b) => (b.localService ? 1 : 0) - (a.localService ? 1 : 0))
+
       if (enVoices.length > 0) setVoices(enVoices)
     }
     loadVoices()
@@ -277,8 +295,11 @@ export default function Settings() {
                       {selectedVoiceName === voice.name && <span className="text-blue-400 text-xs flex-shrink-0">✓</span>}
                       <div className="min-w-0">
                         <div className="text-slate-200 text-sm font-medium truncate">{voice.name}</div>
-                        <div className="text-slate-500 text-xs">
-                          {voice.lang}{voice.localService ? ' · ローカル' : ' · オンライン'}
+                        <div className="text-xs mt-0.5">
+                          <span className="text-slate-500">{voice.lang}</span>
+                          {voice.localService
+                            ? <span className="ml-1.5 text-emerald-400 font-medium">📲 ダウンロード済み</span>
+                            : <span className="ml-1.5 text-slate-600">オンライン</span>}
                         </div>
                       </div>
                     </button>
