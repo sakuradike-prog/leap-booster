@@ -161,7 +161,8 @@ function DailyStartScreen({ onStart, timerSecs, alreadyDone, alphaCount }) {
       </button>
 
       <h1 className="text-2xl font-bold mb-1">📖 30問チャレンジ</h1>
-      <p className="text-slate-400 text-sm mb-1">1日1回・ノーミス30問クリア</p>
+      <p className="text-slate-400 text-sm mb-0.5">1日1回・ノーミス30問クリア</p>
+      <p className="text-slate-400 text-sm mb-1">Part1〜4全体から出題</p>
       <p className="text-slate-500 text-sm mb-6">⏱ 1問 {timerSecs} 秒・時間切れで終了</p>
 
       {alreadyDone && (
@@ -205,7 +206,7 @@ function DailyStartScreen({ onStart, timerSecs, alreadyDone, alphaCount }) {
             <div>
               <div className="font-bold text-base text-white">α（300語）を含める</div>
               <div className="text-xs text-slate-400 mt-0.5">
-                {includeAlpha ? 'Part1〜4 + α（300語）から出題' : 'Part1〜4のみから出題'}
+                {includeAlpha ? 'Part1〜4 + α（300語）から出題' : 'クリア時に+15ポイント'}
               </div>
             </div>
           </label>
