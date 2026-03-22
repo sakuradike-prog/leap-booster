@@ -488,7 +488,8 @@ function QuizScreen({ questions, onComplete }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col px-5 py-8">
+    <div className="min-h-screen bg-slate-950 text-white">
+      <div className="max-w-[600px] mx-auto w-full flex flex-col px-5 py-8">
 
       {/* ヘッダー */}
       <div className="flex items-center justify-between mb-6">
@@ -590,6 +591,7 @@ function QuizScreen({ questions, onComplete }) {
         >
           ホームへ戻る
         </button>
+      </div>
       </div>
     </div>
   )

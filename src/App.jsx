@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import ScrollToTop from './components/ScrollToTop'
 import Home from './pages/Home'
 import Challenge from './pages/Challenge'
 import Warmup from './pages/Warmup'
@@ -84,6 +85,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/challenge" element={<Challenge />} />
