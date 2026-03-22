@@ -378,9 +378,17 @@ export default function Home() {
             bgColor="#7c3aed"
             icon={
               <svg width="44" height="44" viewBox="0 0 60 60" fill="none">
-                <rect x="2" y="2" width="56" height="56" rx="13"
-                  fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.35)" strokeWidth="2.5"/>
-                <text x="30" y="42" fontSize="30" textAnchor="middle">🏆</text>
+                <rect x="2" y="2" width="56" height="56" rx="13" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" strokeWidth="2.5"/>
+                <rect x="7" y="29" width="14" height="21" rx="3" fill="#94a3b8"/>
+                <text x="14" y="43" fontSize="10" textAnchor="middle" fontFamily="'Bebas Neue', sans-serif" fill="white">2</text>
+                <rect x="24" y="17" width="13" height="33" rx="3" fill="#fbbf24"/>
+                <text x="30.5" y="38" fontSize="12" textAnchor="middle" fontFamily="'Bebas Neue', sans-serif" fill="#78350f">1</text>
+                <rect x="40" y="37" width="14" height="13" rx="3" fill="#cd7c42"/>
+                <text x="47" y="47" fontSize="10" textAnchor="middle" fontFamily="'Bebas Neue', sans-serif" fill="white">3</text>
+                <path d="M25 16 L27 10 L30.5 14 L34 10 L36 16 Z" fill="#fbbf24" stroke="#d97706" strokeWidth="0.8"/>
+                <circle cx="25" cy="16.5" r="1.8" fill="white"/>
+                <circle cx="30.5" cy="13" r="1.8" fill="white"/>
+                <circle cx="36" cy="16.5" r="1.8" fill="white"/>
               </svg>
             }
             label="ランキング"
@@ -394,9 +402,20 @@ export default function Home() {
               bgColor="#0f766e"
               icon={
                 <svg width="44" height="44" viewBox="0 0 60 60" fill="none">
-                  <rect x="2" y="2" width="56" height="56" rx="13"
-                    fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.3)" strokeWidth="2.5"/>
-                  <text x="30" y="42" fontSize="28" textAnchor="middle">📊</text>
+                  <rect x="2" y="2" width="56" height="56" rx="13" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" strokeWidth="2.5"/>
+                  <circle cx="22" cy="20" r="13" fill="white" opacity="0.92"/>
+                  <clipPath id="teacherClip"><circle cx="22" cy="20" r="12"/></clipPath>
+                  <image href="/badge_large.png" x="10" y="8" width="24" height="24" clipPath="url(#teacherClip)"/>
+                  <circle cx="44" cy="16" r="5" fill="rgba(255,255,255,0.3)"/>
+                  <circle cx="44" cy="16" r="2.2" fill="#4ade80"/>
+                  <circle cx="44" cy="29" r="5" fill="rgba(255,255,255,0.3)"/>
+                  <circle cx="44" cy="29" r="2.2" fill="#4ade80"/>
+                  <circle cx="16" cy="44" r="5" fill="rgba(255,255,255,0.3)"/>
+                  <circle cx="16" cy="44" r="2.2" fill="#4ade80"/>
+                  <circle cx="30" cy="44" r="5" fill="rgba(255,255,255,0.3)"/>
+                  <circle cx="30" cy="44" r="2.2" fill="#facc15"/>
+                  <circle cx="44" cy="44" r="5" fill="rgba(255,255,255,0.3)"/>
+                  <circle cx="44" cy="44" r="2.2" fill="#f87171"/>
                 </svg>
               }
               label="先生ダッシュボード"

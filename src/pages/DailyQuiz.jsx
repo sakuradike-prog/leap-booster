@@ -13,7 +13,7 @@ import WordBadges from '../components/WordBadges'
 import { addStudyLog } from '../utils/studyLog'
 import { startSession, endSession } from '../utils/sessionLog'
 import { incrementConsecutiveCorrect, resetConsecutiveCorrect } from '../utils/consecutiveCorrect'
-import { isOldBook, sourceBookFilter } from '../utils/bookVersion'
+import { sourceBookFilter } from '../utils/bookVersion'
 
 
 const BASE_PARTS = ['Part1', 'Part2', 'Part3', 'Part4']
@@ -38,13 +38,11 @@ function shuffle(arr) {
 const PRACTICE_LAST_PART_KEY = 'vocaleap_practice_last_part'
 
 function PartSelect({ onStart }) {
-  const PARTS = isOldBook() ? BASE_PARTS : ALL_PARTS
   const [selected, setSelected] = useState(() => {
     try {
       const saved = localStorage.getItem(PRACTICE_LAST_PART_KEY)
       const parsed = saved ? JSON.parse(saved) : ['Part1']
-      // 旧版ユーザーはαを除外
-      return parsed.filter(p => PARTS.includes(p))
+      return parsed.filter(p => ALL_PARTS.includes(p))
     } catch {
       return ['Part1']
     }
@@ -53,10 +51,13 @@ function PartSelect({ onStart }) {
   const [maskMode, setMaskMode] = useState(false)
   const navigate = useNavigate()
 
+  // α単語がDBに存在する場合のみαを表示
+  const PARTS = (wordCounts['α'] ?? 0) > 0 ? ALL_PARTS : BASE_PARTS
+
   useEffect(() => {
     async function fetchCounts() {
       const counts = {}
-      for (const p of PARTS) {
+      for (const p of ALL_PARTS) {
         counts[p] = await db.words.where('leapPart').equals(p).and(sourceBookFilter).count()
       }
       setWordCounts(counts)

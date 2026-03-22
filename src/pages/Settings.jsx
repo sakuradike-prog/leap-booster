@@ -345,7 +345,7 @@ export default function Settings() {
             <div className="p-4 bg-amber-900/30 border border-amber-700 rounded-xl">
               <p className="text-amber-300 font-bold mb-2">単語リストを切り替えますか？</p>
               <p className="text-amber-200 text-sm mb-4">
-                単語リストを切り替えると学習履歴がリセットされます。よろしいですか？
+                SRS復習カード・チャレンジ履歴はリセットされます。<br/>ポイント・ストリークは保持されます。よろしいですか？
               </p>
               <div className="flex gap-3">
                 <button
@@ -374,7 +374,7 @@ export default function Settings() {
                 </button>
               ))}
               <p className="text-xs text-slate-500 mt-1">
-                ※ 切り替えると学習履歴がリセットされます
+                ※ ポイント・ストリークは保持されます
               </p>
             </div>
           )}

@@ -13,7 +13,7 @@ import WordBadges from '../components/WordBadges'
 import { addStudyLog } from '../utils/studyLog'
 import { startSession, endSession } from '../utils/sessionLog'
 import { incrementConsecutiveCorrect, resetConsecutiveCorrect } from '../utils/consecutiveCorrect'
-import { isOldBook, sourceBookFilter } from '../utils/bookVersion'
+import { sourceBookFilter } from '../utils/bookVersion'
 
 const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const GOAL = 30
@@ -146,10 +146,10 @@ function WordFamilySection({ word }) {
 }
 
 // ---- デイリーチャレンジ開始画面 ----
-function DailyStartScreen({ onStart, timerSecs, alreadyDone }) {
+function DailyStartScreen({ onStart, timerSecs, alreadyDone, alphaCount }) {
   const [includeAlpha, setIncludeAlpha] = useState(false)
   const navigate = useNavigate()
-  const oldBook = isOldBook()
+  const hasAlpha = alphaCount > 0
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center px-4 py-8">
@@ -170,8 +170,27 @@ function DailyStartScreen({ onStart, timerSecs, alreadyDone }) {
         </div>
       )}
 
-      {/* αチェックボックス（改訂版ユーザーのみ表示） */}
-      {!oldBook && (
+      {/* ポイント説明 */}
+      <div className="w-full max-w-sm bg-slate-800 rounded-xl px-4 py-4 mb-4 text-sm">
+        <div className="text-slate-400 font-bold mb-3">ポイント計算</div>
+        <div className="flex justify-between mb-1">
+          <span className="text-slate-300">通常単語 1問正解</span>
+          <span className="text-blue-400 font-bold">+1pt</span>
+        </div>
+        <div className="flex justify-between mb-1">
+          <span className="text-slate-300">捕獲済み単語 1問正解</span>
+          <span className="text-cyan-400 font-bold">+2pt</span>
+        </div>
+        {includeAlpha && (
+          <div className="flex justify-between mb-1">
+            <span className="text-slate-300">αあり 全問クリアボーナス</span>
+            <span className="text-purple-400 font-bold">+15pt</span>
+          </div>
+        )}
+      </div>
+
+      {/* αチェックボックス（α単語がDBに存在する場合のみ表示） */}
+      {hasAlpha && (
         <div className="w-full max-w-sm mb-5">
           <label className={`flex items-center gap-3 px-4 py-4 bg-slate-800 border-2 rounded-xl cursor-pointer transition-all ${
             includeAlpha ? 'border-purple-500 bg-purple-900/20' : 'border-slate-600'
@@ -184,33 +203,14 @@ function DailyStartScreen({ onStart, timerSecs, alreadyDone }) {
               disabled={alreadyDone}
             />
             <div>
-              <div className="font-bold text-base text-white">α（2300語）を含める</div>
+              <div className="font-bold text-base text-white">α（300語）を含める</div>
               <div className="text-xs text-slate-400 mt-0.5">
-                {includeAlpha ? 'Part1〜4 + α（2300語）から出題' : 'Part1〜4のみ（1600語）から出題'}
+                {includeAlpha ? 'Part1〜4 + α（300語）から出題' : 'Part1〜4のみから出題'}
               </div>
             </div>
           </label>
         </div>
       )}
-
-      {/* ポイント説明 */}
-      <div className="w-full max-w-sm bg-slate-800 rounded-xl px-4 py-4 mb-6 text-sm">
-        <div className="text-slate-400 font-bold mb-3">ポイント計算</div>
-        <div className="flex justify-between mb-1">
-          <span className="text-slate-300">通常単語 1問正解</span>
-          <span className="text-blue-400 font-bold">+1pt</span>
-        </div>
-        <div className="flex justify-between mb-1">
-          <span className="text-slate-300">捕獲済み単語 1問正解</span>
-          <span className="text-cyan-400 font-bold">+2pt</span>
-        </div>
-        {!oldBook && includeAlpha && (
-          <div className="flex justify-between mb-1">
-            <span className="text-slate-300">αあり 全問クリアボーナス</span>
-            <span className="text-purple-400 font-bold">+15pt</span>
-          </div>
-        )}
-      </div>
 
       <button
         onClick={() => onStart(includeAlpha)}
@@ -1138,6 +1138,7 @@ export default function Challenge() {
   const [selectedParts, setSelectedParts] = useState([])
   const [includeAlpha, setIncludeAlpha] = useState(false)
   const [alreadyDone, setAlreadyDone] = useState(false)
+  const [alphaCount, setAlphaCount] = useState(0)
   const [timeoutWord, setTimeoutWord] = useState(null)
   const [timeoutStreak, setTimeoutStreak] = useState(0)
   const [timeoutReason, setTimeoutReason] = useState('timeout') // 'timeout' | 'honest'
@@ -1153,21 +1154,25 @@ export default function Challenge() {
   const [timeoutEarnedPoints, setTimeoutEarnedPoints] = useState(0)
   const [timeoutCapturedCount, setTimeoutCapturedCount] = useState(0)
   const startTimeRef = useRef(null)
-  const { recordChallengeClear, recordStudy, addPoints } = useUserStats()
+  const { stats, recordChallengeClear, recordStudy, addPoints } = useUserStats()
   const navigate = useNavigate()
 
-  // 今日クリア済みか確認
+  // 今日クリア済みか確認（Supabase同期済みの stats を使用）
   useEffect(() => {
-    db.userStats.get(1).then(s => {
-      if (s?.challengeLastDate && isSameDay(new Date(s.challengeLastDate), new Date())) {
-        setAlreadyDone(true)
-      }
-    })
+    if (stats?.challengeLastDate && isSameDay(new Date(stats.challengeLastDate), new Date())) {
+      setAlreadyDone(true)
+    }
+  }, [stats])
+
+  // α単語数をDBから取得
+  useEffect(() => {
+    db.words.where('leapPart').equals('α').count()
+      .then(n => setAlphaCount(n))
+      .catch(() => {})
   }, [])
 
   async function handleStart(incAlpha) {
-    // 旧版ユーザーはαを含めない
-    const useAlpha = incAlpha && !isOldBook()
+    const useAlpha = incAlpha
     setIncludeAlpha(useAlpha)
     const parts = useAlpha
       ? ['Part1', 'Part2', 'Part3', 'Part4', 'α']
@@ -1282,7 +1287,7 @@ export default function Challenge() {
   }
 
   if (phase === 'select') {
-    return <DailyStartScreen onStart={handleStart} timerSecs={timerSecs} alreadyDone={alreadyDone} />
+    return <DailyStartScreen onStart={handleStart} timerSecs={timerSecs} alreadyDone={alreadyDone} alphaCount={alphaCount} />
   }
   if (phase === 'playing') {
     return (

@@ -33,7 +33,8 @@ export default function StreakInfoPage() {
         >
           {streak}
         </div>
-        <div className="text-slate-400 text-sm mt-1">現在のストリーク</div>
+        <div className="text-white font-bold text-lg mt-1">{streak}日連続！</div>
+        <div className="text-slate-400 text-sm mt-0.5">現在のストリーク</div>
       </div>
 
       <div className="flex gap-3 mb-6">

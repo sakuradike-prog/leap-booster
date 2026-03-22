@@ -37,15 +37,19 @@ async function loadBuffer(url) {
 loadBuffer('/コイン.m4a').then(b  => { _correctBuffer = b }).catch(() => {})
 loadBuffer('/不正解.m4a').then(b  => { _wrongBuffer   = b }).catch(() => {})
 
-// iOS: 最初のユーザー操作（touchstart / click）で AudioContext をアンロック
-// → 1問目のタップで音が出ない問題を解消
-function _unlockOnce() {
-  if (_ctx && _ctx.state === 'suspended') {
+// iOS: ユーザー操作 / 画面復帰のたびに AudioContext をアンロック
+// suspended（初回）や interrupted（バックグラウンド復帰後）に対応
+// once: true を使わず常時リスナーにすることで、バックグラウンド後も確実に再開する
+function _unlock() {
+  if (_ctx && (_ctx.state === 'suspended' || _ctx.state === 'interrupted')) {
     _ctx.resume().catch(() => {})
   }
 }
-document.addEventListener('touchstart', _unlockOnce, { once: true, passive: true })
-document.addEventListener('click',      _unlockOnce, { once: true })
+document.addEventListener('touchstart',      _unlock, { passive: true })
+document.addEventListener('click',           _unlock)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') _unlock()
+})
 
 function isSoundEnabled() {
   return localStorage.getItem('soundEnabled') !== 'false'
@@ -54,7 +58,7 @@ function isSoundEnabled() {
 async function playBuffer(buffer) {
   if (!_ctx || !buffer || !isSoundEnabled()) return
   try {
-    if (_ctx.state === 'suspended') {
+    if (_ctx.state === 'suspended' || _ctx.state === 'interrupted') {
       await _ctx.resume()
     }
     const src = _ctx.createBufferSource()

@@ -8,7 +8,7 @@ import StreakToast from '../components/StreakToast'
 import SessionCompleteOverlay from '../components/SessionCompleteOverlay'
 import { addStudyLog } from '../utils/studyLog'
 import { startSession, endSession } from '../utils/sessionLog'
-import { isOldBook, sourceBookFilter } from '../utils/bookVersion'
+import { sourceBookFilter } from '../utils/bookVersion'
 
 const ALL_PARTS  = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4', 'α']
 const BASE_PARTS = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4']
@@ -118,7 +118,8 @@ async function incrementStudyCount(wordId) {
 // SelectScreen
 // ─────────────────────────────────────────────
 function SelectScreen({ onStart, onHistorySelect }) {
-  const PARTS = isOldBook() ? BASE_PARTS : ALL_PARTS
+  const [hasAlpha, setHasAlpha] = useState(false)
+  const PARTS = hasAlpha ? ALL_PARTS : BASE_PARTS
   const [selectedPart, setSelectedPart] = useState('すべて')
   const [totalCount, setTotalCount] = useState(0)
   const [countLoading, setCountLoading] = useState(true)
@@ -128,6 +129,13 @@ function SelectScreen({ onStart, onHistorySelect }) {
 
   const isHistoryMode = selectedPart === HISTORY_MODE
   const isNumberMode  = selectedPart === NUMBER_MODE
+
+  // α例文がDBに存在するか確認
+  useEffect(() => {
+    db.warmupSentences.where('leapPart').equals('α').count()
+      .then(n => setHasAlpha(n > 0))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (isHistoryMode || isNumberMode) { setTotalCount(-1); setCountLoading(false); return }

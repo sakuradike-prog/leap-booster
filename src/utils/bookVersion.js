@@ -16,8 +16,10 @@ export function isOldBook() {
 /**
  * Dexie の words クエリに使う sourceBook フィルター関数
  * sourceBook が未設定のレガシーデータは通過させる（後方互換）
+ * α単語（leapPart='α'）は leapNumber 2001-2300 で旧版と重ならないため常に通過
  */
 export function sourceBookFilter(word) {
+  if (word.leapPart === 'α') return true
   const bookId = getBookId()
   return !word.sourceBook || word.sourceBook === bookId
 }
