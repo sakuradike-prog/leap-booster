@@ -237,9 +237,11 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
-      <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800/60 px-5 py-3 flex items-center gap-3">
-        <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
-        <h1 className="text-lg font-bold">⚙️ 設定</h1>
+      <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800/60">
+        <div className="max-w-[600px] mx-auto px-5 py-3 flex items-center gap-3">
+          <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
+          <h1 className="text-lg font-bold">⚙️ 設定</h1>
+        </div>
       </div>
       <div className="max-w-[600px] mx-auto px-4 py-6">
 

@@ -52,14 +52,16 @@ export default function HeatmapPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 px-5 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
-          <h1 className="text-lg font-bold">単語収集ヒートマップ</h1>
+      <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60">
+        <div className="max-w-[600px] mx-auto px-5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate(-1)} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
+            <h1 className="text-lg font-bold">単語収集ヒートマップ</h1>
+          </div>
+          <button onClick={() => navigate('/capture')} className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold rounded-lg transition-colors">
+            ＋ 捕獲する
+          </button>
         </div>
-        <button onClick={() => navigate('/capture')} className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold rounded-lg transition-colors">
-          ＋ 捕獲する
-        </button>
       </div>
       <div className="max-w-[600px] mx-auto px-4 py-6">
         <p className="text-slate-400 text-xs mb-4">
