@@ -99,6 +99,8 @@ export default function Settings() {
 
   // 音声選択
   const [voices, setVoices] = useState([])
+  const [allRawVoices, setAllRawVoices] = useState([])
+  const [showVoiceDebug, setShowVoiceDebug] = useState(false)
   const [selectedVoiceName, setSelectedVoiceName] = useState(
     () => localStorage.getItem('vocaleap_voice_name') ?? ''
   )
@@ -107,36 +109,45 @@ export default function Settings() {
     if (!window.speechSynthesis) return
     function loadVoices() {
       const all = window.speechSynthesis.getVoices()
+      if (all.length === 0) return
+
+      setAllRawVoices(all)
 
       // ノベルティ・非人間・かすれ声などをブロック（英語名・日本語名両対応）
       const NOVELTY = [
         // English names
         'bad news', 'bubbles', 'cellos', 'good news', 'jester', 'junior',
         'organ', 'trinoids', 'trinoid', 'whisper', 'wobble', 'zarvox',
-        'bells', 'boing', 'bottle', 'deranged', 'hysterical', 'pipe organ',
-        'spectral', 'superstar', 'tuvan', 'albert', 'fred', 'ralph', 'kathy', 'bruce',
+        'bells', 'bell', 'boing', 'bottle', 'deranged', 'hysterical',
+        'pipe organ', 'spectral', 'superstar', 'tuvan', 'albert', 'fred',
+        'ralph', 'kathy', 'bruce', 'bahh',
         // iOS日本語環境での表記
         '道化', 'オルガン', 'スーパースター', 'トリノイド', 'バッドニュース',
         'バブルス', 'セロス', 'グッドニュース', 'ジュニア', 'ウォブル',
-        'ザーボックス', 'ベルズ', 'ボイング', 'デレンジド', 'ヒステリカル',
-        'スペクトラル', 'チューバン', '震え', 'かすれ',
+        'ザーボックス', 'ベルズ', 'ベル', 'ボイング', 'デレンジド',
+        'ヒステリカル', 'スペクトラル', 'チューバン', 'バー',
+        'ささやき', '囁き', '震え', 'かすれ',
       ]
       const isNovelty = (v) => {
         const n = v.name.toLowerCase()
         return NOVELTY.some(w => n.includes(w.toLowerCase()))
       }
 
-      // lang コードの揺れに対応（en-US / en_US / en-GB / en_GB 等すべての英語を対象）
-      const isEnglish = (v) => v.lang.replace('_', '-').toLowerCase().startsWith('en')
+      // en-US / en_US / en-GB / en_GB に限定（アンダースコア正規化）
+      const langNorm = (v) => v.lang.replace('_', '-').toLowerCase()
+      const isTarget = (v) => langNorm(v) === 'en-us' || langNorm(v) === 'en-gb'
 
       const enVoices = all
-        .filter(v => isEnglish(v) && !isNovelty(v))
+        .filter(v => isTarget(v) && !isNovelty(v))
         // ローカル保存（iOSダウンロード高品質声含む）を上位に表示
         .sort((a, b) => (b.localService ? 1 : 0) - (a.localService ? 1 : 0))
 
       if (enVoices.length > 0) setVoices(enVoices)
     }
     loadVoices()
+    // voiceschangedは複数回発火することがあるため、遅延リトライも追加
+    setTimeout(loadVoices, 500)
+    setTimeout(loadVoices, 1500)
     window.speechSynthesis.addEventListener('voiceschanged', loadVoices)
     return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices)
   }, [])
@@ -323,6 +334,35 @@ export default function Settings() {
               </div>
             </div>
           )}
+
+          {/* 音声デバッグパネル */}
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setShowVoiceDebug(v => !v)}
+              className="text-xs text-slate-600 hover:text-slate-400 transition-colors"
+            >
+              {showVoiceDebug ? '▲' : '▶'} 開発者向け：全音声リスト（{allRawVoices.length}件）
+            </button>
+            {showVoiceDebug && (
+              <div className="mt-2 p-3 bg-slate-950 border border-slate-700 rounded-xl max-h-72 overflow-y-auto">
+                <div className="text-xs text-slate-500 mb-2">getVoices() が返す全音声（フィルター前）</div>
+                {allRawVoices.length === 0 ? (
+                  <div className="text-xs text-slate-600">音声が取得できていません</div>
+                ) : (
+                  allRawVoices.map((v, i) => (
+                    <div key={i} className="text-xs py-0.5 border-b border-slate-800 last:border-0 flex gap-2">
+                      <span className="text-slate-300 flex-1 truncate">{v.name}</span>
+                      <span className="text-slate-600 flex-shrink-0">{v.lang}</span>
+                      <span className={`flex-shrink-0 ${v.localService ? 'text-emerald-500' : 'text-slate-700'}`}>
+                        {v.localService ? 'local' : 'online'}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </section>
 
         {/* 4択練習 タイマー設定 */}
