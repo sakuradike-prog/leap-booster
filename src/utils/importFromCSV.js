@@ -75,13 +75,13 @@ export async function importCSVFromUrl(csvUrl, clearAll = false, sourceBook = 'n
   const words = rawWords.map(w => ({ ...w, sourceBook }))
 
   if (clearAll) {
-    await db.transaction('rw', [db.words, db.cards, db.challengeHistory, db.warmupHistory, db.userStats, db.warmupSentences], async () => {
+    // userStats（ポイント・ストリーク）は書籍切り替えでも保持する
+    await db.transaction('rw', [db.words, db.cards, db.challengeHistory, db.warmupHistory, db.warmupSentences], async () => {
       await Promise.all([
         db.words.clear(),
         db.cards.clear(),
         db.challengeHistory.clear(),
         db.warmupHistory.clear(),
-        db.userStats.clear(),
         db.warmupSentences.clear(),
       ])
     })
