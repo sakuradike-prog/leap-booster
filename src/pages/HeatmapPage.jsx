@@ -52,24 +52,16 @@ export default function HeatmapPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      <div className="max-w-[600px] mx-auto px-4 py-6">
-        {/* ヘッダー */}
-        <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="text-slate-400 hover:text-white text-sm"
-          >
-            ← 戻る
-          </button>
-          <button
-            onClick={() => navigate('/capture')}
-            className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold rounded-lg transition-colors"
-          >
-            ＋ 捕獲する
-          </button>
+      <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 px-5 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
+          <h1 className="text-lg font-bold">単語収集ヒートマップ</h1>
         </div>
-
-        <h1 className="text-xl font-black mb-1">単語収集ヒートマップ</h1>
+        <button onClick={() => navigate('/capture')} className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold rounded-lg transition-colors">
+          ＋ 捕獲する
+        </button>
+      </div>
+      <div className="max-w-[600px] mx-auto px-4 py-6">
         <p className="text-slate-400 text-xs mb-4">
           {totalWords.toLocaleString()}語中 <span className="text-cyan-400 font-bold">{capturedCount}語</span> 捕獲済み
         </p>

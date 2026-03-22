@@ -15,15 +15,11 @@ export default function StreakInfoPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
+      <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 px-5 py-3 flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
+        <h1 className="text-lg font-bold">🔥 STREAK</h1>
+      </div>
     <div className="max-w-[600px] mx-auto w-full flex flex-col px-5 py-6">
-      <button
-        onClick={() => navigate(-1)}
-        className="text-slate-400 hover:text-white text-sm mb-6 text-left"
-      >
-        ← 戻る
-      </button>
-
-      <h1 className="text-2xl font-black mb-6">🔥 STREAK</h1>
 
       {/* 現在のストリーク */}
       <div className="flex flex-col items-center py-8 bg-slate-900 rounded-2xl border border-slate-800 mb-4">

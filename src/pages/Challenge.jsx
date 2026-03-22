@@ -152,15 +152,12 @@ function DailyStartScreen({ onStart, timerSecs, alreadyDone, alphaCount }) {
   const hasAlpha = alphaCount > 0
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center px-4 py-8">
-      <button
-        onClick={() => navigate('/')}
-        className="self-start text-slate-400 hover:text-white mb-6 text-sm"
-      >
-        ← 戻る
-      </button>
-
-      <h1 className="text-2xl font-bold mb-1">📖 30問チャレンジ</h1>
+    <div className="min-h-screen bg-slate-900 text-white">
+      <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800/60 px-5 py-3 flex items-center gap-3">
+        <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
+        <h1 className="text-lg font-bold">📖 30問チャレンジ</h1>
+      </div>
+      <div className="flex flex-col items-center px-4 py-8">
       <p className="text-slate-400 text-sm mb-0.5">1日1回・ノーミス30問クリア</p>
       <p className="text-slate-400 text-sm mb-1">Part1〜4全体から出題</p>
       <p className="text-slate-500 text-sm mb-6">⏱ 1問 {timerSecs} 秒・時間切れで終了</p>
@@ -220,6 +217,7 @@ function DailyStartScreen({ onStart, timerSecs, alreadyDone, alphaCount }) {
       >
         スタート
       </button>
+      </div>
     </div>
   )
 }

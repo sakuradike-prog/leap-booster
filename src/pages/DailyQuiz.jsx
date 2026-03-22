@@ -74,15 +74,12 @@ function PartSelect({ onStart }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center px-4 py-8">
-      <button
-        onClick={() => navigate('/')}
-        className="self-start text-slate-400 hover:text-white mb-6 text-sm"
-      >
-        ← 戻る
-      </button>
-
-      <h1 className="text-2xl font-bold mb-1">💡 4択練習</h1>
+    <div className="min-h-screen bg-slate-900 text-white">
+      <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800/60 px-5 py-3 flex items-center gap-3">
+        <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
+        <h1 className="text-lg font-bold">💡 4択練習</h1>
+      </div>
+      <div className="flex flex-col items-center px-4 py-8">
       <p className="text-slate-400 text-sm mb-6">ポイントなし・何度でも挑戦できる</p>
 
       <div className="w-full max-w-sm md:max-w-[600px] flex flex-col gap-3 mb-8">
@@ -135,6 +132,7 @@ function PartSelect({ onStart }) {
           単語が〇〇〇〇で隠されます。音声を聞いて意味を考えよう！
         </p>
       )}
+      </div>
     </div>
   )
 }

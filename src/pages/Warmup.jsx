@@ -190,16 +190,12 @@ function SelectScreen({ onStart, onHistorySelect }) {
     : (!isHistoryMode && totalCount === 0)
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col px-4 py-8">
-      <div className="max-w-[600px] mx-auto w-full">
-
-        <div className="flex items-center mb-8">
-          <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white mr-4 text-lg">← 戻る</button>
-          <div>
-            <h1 className="text-2xl font-bold">⚡ 瞬間英作文</h1>
-            <p className="text-slate-500 text-xs mt-0.5">声に出して繰り返し練習しよう</p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-slate-900 text-white flex flex-col">
+      <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800/60 px-5 py-3 flex items-center gap-3">
+        <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
+        <h1 className="text-lg font-bold">⚡ 瞬間英作文</h1>
+      </div>
+      <div className="max-w-[600px] mx-auto w-full px-4 py-8">
 
         {!countLoading && totalCount === 0 && !isHistoryMode && !isNumberMode && (
           <div className="mb-6 p-4 bg-amber-900/30 border border-amber-700 rounded-xl text-amber-300 text-sm">
