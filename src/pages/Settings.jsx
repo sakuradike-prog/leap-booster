@@ -151,7 +151,7 @@ export default function Settings() {
     setAlphaDone(false)
     setAlphaError(null)
     try {
-      await importCSVFromUrl(ALPHA_CSV, false)
+      await importCSVFromUrl(ALPHA_CSV, false, 'new')
       setAlphaDone(true)
     } catch (err) {
       setAlphaError(err.message)
@@ -191,7 +191,7 @@ export default function Settings() {
     setListSwitching(true)
     setListSwitchError(null)
     try {
-      await importCSVFromUrl(pendingList.file, true)
+      await importCSVFromUrl(pendingList.file, true, pendingList.id)
       localStorage.setItem('leap_book_id', pendingList.id)
       await loadExamples()
       setListSwitchDone(true)

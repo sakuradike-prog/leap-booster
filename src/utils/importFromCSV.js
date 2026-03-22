@@ -64,12 +64,15 @@ function parseCSV(text) {
 
 // URLからCSVを取得してDBにインポートする
 // clearAll=true の場合、インポート前に全テーブルをクリアする
-export async function importCSVFromUrl(csvUrl, clearAll = false) {
+// sourceBook: 'new'（改訂版）| 'old'（旧版）。各単語にスタンプして混在を防ぐ
+export async function importCSVFromUrl(csvUrl, clearAll = false, sourceBook = 'new') {
   const res = await fetch(csvUrl)
   if (!res.ok) throw new Error(`CSVの取得に失敗しました (${res.status})`)
   const text = await res.text()
-  const words = parseCSV(text)
-  if (words.length === 0) throw new Error('インポートできる単語がありませんでした')
+  const rawWords = parseCSV(text)
+  if (rawWords.length === 0) throw new Error('インポートできる単語がありませんでした')
+  // sourceBook フィールドを全単語に付与（旧版と改訂版の混在を防ぐ）
+  const words = rawWords.map(w => ({ ...w, sourceBook }))
 
   if (clearAll) {
     await db.transaction('rw', [db.words, db.cards, db.challengeHistory, db.warmupHistory, db.userStats, db.warmupSentences], async () => {

@@ -13,7 +13,7 @@ import WordBadges from '../components/WordBadges'
 import { addStudyLog } from '../utils/studyLog'
 import { startSession, endSession } from '../utils/sessionLog'
 import { incrementConsecutiveCorrect, resetConsecutiveCorrect } from '../utils/consecutiveCorrect'
-import { isOldBook } from '../utils/bookVersion'
+import { isOldBook, sourceBookFilter } from '../utils/bookVersion'
 
 
 const BASE_PARTS = ['Part1', 'Part2', 'Part3', 'Part4']
@@ -57,7 +57,7 @@ function PartSelect({ onStart }) {
     async function fetchCounts() {
       const counts = {}
       for (const p of PARTS) {
-        counts[p] = await db.words.where('leapPart').equals(p).count()
+        counts[p] = await db.words.where('leapPart').equals(p).and(sourceBookFilter).count()
       }
       setWordCounts(counts)
     }
@@ -475,7 +475,7 @@ export default function DailyQuiz() {
 
   async function handleStart(parts, mask = false) {
     setMaskMode(mask)
-    const allWords = await db.words.where('leapPart').anyOf(parts).toArray()
+    const allWords = await db.words.where('leapPart').anyOf(parts).and(sourceBookFilter).toArray()
     if (allWords.length < 4) return
 
     const pool = shuffle(allWords).slice(0, QUESTIONS)

@@ -13,7 +13,7 @@ import WordBadges from '../components/WordBadges'
 import { addStudyLog } from '../utils/studyLog'
 import { startSession, endSession } from '../utils/sessionLog'
 import { incrementConsecutiveCorrect, resetConsecutiveCorrect } from '../utils/consecutiveCorrect'
-import { isOldBook } from '../utils/bookVersion'
+import { isOldBook, sourceBookFilter } from '../utils/bookVersion'
 
 const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const GOAL = 30
@@ -1173,7 +1173,7 @@ export default function Challenge() {
       ? ['Part1', 'Part2', 'Part3', 'Part4', 'α']
       : ['Part1', 'Part2', 'Part3', 'Part4']
 
-    const allWords = await db.words.where('leapPart').anyOf(parts).toArray()
+    const allWords = await db.words.where('leapPart').anyOf(parts).and(sourceBookFilter).toArray()
     if (allWords.length === 0) return
 
     const shuffled = shuffle(allWords)

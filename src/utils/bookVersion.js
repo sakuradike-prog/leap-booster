@@ -12,3 +12,12 @@ export function getBookId() {
 export function isOldBook() {
   return getBookId() === 'old'
 }
+
+/**
+ * Dexie の words クエリに使う sourceBook フィルター関数
+ * sourceBook が未設定のレガシーデータは通過させる（後方互換）
+ */
+export function sourceBookFilter(word) {
+  const bookId = getBookId()
+  return !word.sourceBook || word.sourceBook === bookId
+}

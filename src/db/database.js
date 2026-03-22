@@ -40,3 +40,9 @@ db.version(6).stores({
   study_logs:   '++id, leapNumber, eventType, mode, timestamp, hour',
   session_logs: '++id, date, mode, startTime',
 })
+
+db.version(7).stores({
+  // words に sourceBook インデックス追加（'old' | 'new'）
+  // 旧版と改訂版が混在しても正しくフィルタリングできるようにする
+  words: '++id, word, leapPart, leapNumber, familyId, sourceBook',
+})

@@ -8,7 +8,7 @@ import StreakToast from '../components/StreakToast'
 import SessionCompleteOverlay from '../components/SessionCompleteOverlay'
 import { addStudyLog } from '../utils/studyLog'
 import { startSession, endSession } from '../utils/sessionLog'
-import { isOldBook } from '../utils/bookVersion'
+import { isOldBook, sourceBookFilter } from '../utils/bookVersion'
 
 const ALL_PARTS  = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4', 'α']
 const BASE_PARTS = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4']
@@ -22,7 +22,7 @@ const MAX_SELECT = 5
 async function enrichSentences(sentences) {
   const wordStrings = [...new Set(sentences.map(s => s.word).filter(Boolean))]
   if (wordStrings.length === 0) return sentences
-  const wordRecords = await db.words.where('word').anyOf(wordStrings).toArray()
+  const wordRecords = await db.words.where('word').anyOf(wordStrings).and(sourceBookFilter).toArray()
 
   // 精密マップ: "word:leapNumber" → wordObj
   const preciseMap = {}
