@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import WordDetailScreen from '../components/WordDetailScreen'
@@ -19,6 +19,7 @@ export default function StudyHistory() {
   const [groups, setGroups] = useState([])
   const [loading, setLoading] = useState(true)
   const [wordContext, setWordContext] = useState(null) // { word, sessionWords, sessionIndex }
+  const savedScrollY = useRef(0)
 
   useEffect(() => {
     async function load() {
@@ -92,6 +93,18 @@ export default function StudyHistory() {
     load()
   }, [])
 
+  // 単語詳細から戻ったときにスクロール位置を復元
+  useEffect(() => {
+    if (!wordContext && savedScrollY.current > 0) {
+      const y = savedScrollY.current
+      requestAnimationFrame(() => {
+        window.scrollTo(0, y)
+        document.documentElement.scrollTop = y
+        document.body.scrollTop = y
+      })
+    }
+  }, [wordContext])
+
   if (wordContext) {
     return (
       <WordDetailScreen
@@ -128,7 +141,10 @@ export default function StudyHistory() {
                   {entries.map(({ word, isCaptured }, i) => (
                     <button
                       key={`${word.id}_${i}`}
-                      onClick={() => setWordContext({ word, sessionWords: words, sessionIndex: i })}
+                      onClick={() => {
+                        savedScrollY.current = window.scrollY || document.documentElement.scrollTop || 0
+                        setWordContext({ word, sessionWords: words, sessionIndex: i })
+                      }}
                       className="w-full text-left px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-3 active:scale-95 transition-all"
                     >
                       <span className="text-slate-500 text-xs w-14 shrink-0">No.{word.leapNumber}</span>
