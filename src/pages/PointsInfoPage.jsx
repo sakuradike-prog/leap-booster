@@ -34,7 +34,8 @@ export default function PointsInfoPage() {
   })()
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col px-5 py-6">
+    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="max-w-2xl mx-auto w-full flex flex-col px-5 py-6">
       <button
         onClick={() => navigate(-1)}
         className="text-slate-400 hover:text-white text-sm mb-6 text-left"
@@ -109,6 +110,7 @@ export default function PointsInfoPage() {
         <span className="text-slate-400 font-bold">最大ポイント例</span><br />
         αあり・全問正解・全問捕獲済みの場合: 30×2 + 15 = <span className="text-amber-400 font-bold">75pt</span>
       </div>
+    </div>
     </div>
   )
 }

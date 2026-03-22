@@ -212,7 +212,7 @@ export default function Stats() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white px-4 py-8">
-      <div className="max-w-sm mx-auto">
+      <div className="max-w-2xl mx-auto">
         {/* ヘッダー */}
         <div className="flex items-center mb-8">
           <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white mr-4 text-lg">
@@ -234,29 +234,7 @@ export default function Stats() {
           <p className="text-slate-600 text-center py-10">読み込み中…</p>
         ) : (
           <>
-            {/* バッジ */}
-            {!statsLoading && (() => {
-              const badges = computeBadges(stats, challengeHistory)
-              const anyEarned = [...badges.point, ...badges.streak, ...badges.challenge].some(b => b.earned)
-              return (
-                <section className="mb-8">
-                  <h2 className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-3">
-                    称号・バッジ
-                  </h2>
-                  {anyEarned ? (
-                    <>
-                      <BadgeGrid title="ポイント" badges={badges.point} />
-                      <BadgeGrid title="ストリーク" badges={badges.streak} />
-                      <BadgeGrid title="チャレンジ" badges={badges.challenge} />
-                    </>
-                  ) : (
-                    <p className="text-slate-600 text-sm">
-                      学習を重ねるとバッジが獲得できます！まず 50pt を目指そう
-                    </p>
-                  )}
-                </section>
-              )
-            })()}
+            {/* 称号・バッジ：運用開始後に実装予定 */}
 
             {/* 直近7日のアクティビティ */}
             <section className="mb-8">

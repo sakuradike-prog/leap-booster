@@ -85,7 +85,7 @@ function PartSelect({ onStart }) {
       <h1 className="text-2xl font-bold mb-1">💡 4択練習</h1>
       <p className="text-slate-400 text-sm mb-6">ポイントなし・何度でも挑戦できる</p>
 
-      <div className="w-full max-w-sm flex flex-col gap-3 mb-8">
+      <div className="w-full max-w-sm md:max-w-2xl flex flex-col gap-3 mb-8">
         {PARTS.map(part => (
           <button
             key={part}
@@ -105,7 +105,7 @@ function PartSelect({ onStart }) {
       </div>
 
       {/* スタートボタン + 伏字チェックボックス */}
-      <div className="w-full max-w-sm flex items-center gap-3">
+      <div className="w-full max-w-sm md:max-w-2xl flex items-center gap-3">
         <button
           onClick={() => onStart(selected, maskMode)}
           disabled={selected.length === 0}
@@ -289,7 +289,7 @@ function QuizScreen({ questions, onFinish, onHome, maskMode }) {
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center px-4 py-6">
       {/* 進捗 + タイマー */}
-      <div className="w-full max-w-sm mb-4">
+      <div className="w-full max-w-sm md:max-w-2xl mb-4">
         <div className="flex justify-between text-sm text-slate-400 mb-1">
           <span>{qIdx + 1} / {questions.length}</span>
           <span className={timeLeft <= 3 ? 'text-red-400 font-bold animate-pulse' : ''}>{timeLeft}秒</span>
@@ -312,7 +312,7 @@ function QuizScreen({ questions, onFinish, onHome, maskMode }) {
 
       {/* 単語カード（タップで再読み上げ） */}
       <div
-        className="w-full max-w-sm bg-slate-800 rounded-2xl px-6 py-6 text-center mb-6 active:opacity-70 transition-opacity"
+        className="w-full max-w-sm md:max-w-2xl bg-slate-800 rounded-2xl px-6 py-6 text-center mb-6 active:opacity-70 transition-opacity"
         onClick={() => speak(q.word.word, 'en-US', 0.85)}
       >
         <div className="flex items-center justify-center gap-2 mb-1">
@@ -354,7 +354,7 @@ function QuizScreen({ questions, onFinish, onHome, maskMode }) {
       </div>
 
       {!choicesVisible ? (
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-sm md:max-w-2xl">
           <button
             onClick={() => {
               setChoicesVisible(true)
@@ -383,7 +383,7 @@ function QuizScreen({ questions, onFinish, onHome, maskMode }) {
           </button>
         </div>
       ) : (
-        <div ref={choicesRef} className="w-full max-w-sm flex flex-col gap-3">
+        <div ref={choicesRef} className="w-full max-w-sm md:max-w-2xl flex flex-col gap-3">
           {q.choices.map((choice, i) => {
             let cls = 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700 active:scale-95'
             if (revealed) {
@@ -426,7 +426,7 @@ function ResultScreen({ score, onReview, onHome }) {
       <h2 className="text-5xl font-black text-blue-400 mb-1">{score} / {QUESTIONS}</h2>
       <p className="text-slate-400 mb-8">正解数</p>
 
-      <div className="w-full max-w-sm flex flex-col gap-4">
+      <div className="w-full max-w-sm md:max-w-2xl flex flex-col gap-4">
         <button
           onClick={onReview}
           className="w-full py-5 text-xl font-bold bg-amber-600 hover:bg-amber-500 rounded-2xl transition-colors"

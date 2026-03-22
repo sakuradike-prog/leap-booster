@@ -249,7 +249,7 @@ export default function CapturePage() {
           </div>
 
           {/* ボタン */}
-          <div className="flex flex-col gap-3 w-full max-w-sm" style={{ animation: 'cpSlideUp .4s ease-out .56s both', opacity: 0 }}>
+          <div className="flex flex-col gap-3 w-full max-w-sm md:max-w-2xl" style={{ animation: 'cpSlideUp .4s ease-out .56s both', opacity: 0 }}>
             <button onClick={handleReset}
               className="w-full py-4 rounded-xl font-bold text-slate-900 transition-colors"
               style={{ background: 'linear-gradient(90deg,#00e5ff,#22d3ee)', boxShadow: '0 0 24px rgba(0,229,255,.5)' }}>

@@ -105,7 +105,7 @@ export default function StudyHistory() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white px-4 py-8">
-      <div className="max-w-sm mx-auto">
+      <div className="max-w-2xl mx-auto">
         <div className="flex items-center mb-8">
           <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white mr-4 text-lg">
             ← 戻る

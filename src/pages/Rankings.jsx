@@ -43,7 +43,7 @@ export default function Rankings() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white px-4 py-8">
-      <div className="max-w-sm mx-auto">
+      <div className="max-w-2xl mx-auto">
 
         {/* ヘッダー */}
         <div className="flex items-center mb-6">

@@ -14,7 +14,8 @@ export default function StreakInfoPage() {
   ))
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col px-5 py-6">
+    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="max-w-2xl mx-auto w-full flex flex-col px-5 py-6">
       <button
         onClick={() => navigate(-1)}
         className="text-slate-400 hover:text-white text-sm mb-6 text-left"
@@ -94,6 +95,7 @@ export default function StreakInfoPage() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   )
 }
