@@ -8,8 +8,10 @@ import StreakToast from '../components/StreakToast'
 import SessionCompleteOverlay from '../components/SessionCompleteOverlay'
 import { addStudyLog } from '../utils/studyLog'
 import { startSession, endSession } from '../utils/sessionLog'
+import { isOldBook } from '../utils/bookVersion'
 
-const PARTS = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4', 'α']
+const ALL_PARTS  = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4', 'α']
+const BASE_PARTS = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4']
 const HISTORY_MODE = '最近の学習から'
 const NUMBER_MODE = '番号で指定'
 const SESSION_COUNT = 5
@@ -116,6 +118,7 @@ async function incrementStudyCount(wordId) {
 // SelectScreen
 // ─────────────────────────────────────────────
 function SelectScreen({ onStart, onHistorySelect }) {
+  const PARTS = isOldBook() ? BASE_PARTS : ALL_PARTS
   const [selectedPart, setSelectedPart] = useState('すべて')
   const [totalCount, setTotalCount] = useState(0)
   const [countLoading, setCountLoading] = useState(true)

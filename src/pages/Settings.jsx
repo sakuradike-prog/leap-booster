@@ -192,6 +192,7 @@ export default function Settings() {
     setListSwitchError(null)
     try {
       await importCSVFromUrl(pendingList.file, true)
+      localStorage.setItem('leap_book_id', pendingList.id)
       await loadExamples()
       setListSwitchDone(true)
     } catch (err) {

@@ -13,6 +13,7 @@ import WordBadges from '../components/WordBadges'
 import { addStudyLog } from '../utils/studyLog'
 import { startSession, endSession } from '../utils/sessionLog'
 import { incrementConsecutiveCorrect, resetConsecutiveCorrect } from '../utils/consecutiveCorrect'
+import { isOldBook } from '../utils/bookVersion'
 
 const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const GOAL = 30
@@ -148,6 +149,7 @@ function WordFamilySection({ word }) {
 function DailyStartScreen({ onStart, timerSecs, alreadyDone }) {
   const [includeAlpha, setIncludeAlpha] = useState(false)
   const navigate = useNavigate()
+  const oldBook = isOldBook()
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center px-4 py-8">
@@ -168,26 +170,28 @@ function DailyStartScreen({ onStart, timerSecs, alreadyDone }) {
         </div>
       )}
 
-      {/* αチェックボックス */}
-      <div className="w-full max-w-sm mb-5">
-        <label className={`flex items-center gap-3 px-4 py-4 bg-slate-800 border-2 rounded-xl cursor-pointer transition-all ${
-          includeAlpha ? 'border-purple-500 bg-purple-900/20' : 'border-slate-600'
-        } ${alreadyDone ? 'opacity-50 cursor-not-allowed' : ''}`}>
-          <input
-            type="checkbox"
-            checked={includeAlpha}
-            onChange={e => !alreadyDone && setIncludeAlpha(e.target.checked)}
-            className="w-5 h-5 accent-purple-500"
-            disabled={alreadyDone}
-          />
-          <div>
-            <div className="font-bold text-base text-white">α（2300語）を含める</div>
-            <div className="text-xs text-slate-400 mt-0.5">
-              {includeAlpha ? 'Part1〜4 + α（2300語）から出題' : 'Part1〜4のみ（1600語）から出題'}
+      {/* αチェックボックス（改訂版ユーザーのみ表示） */}
+      {!oldBook && (
+        <div className="w-full max-w-sm mb-5">
+          <label className={`flex items-center gap-3 px-4 py-4 bg-slate-800 border-2 rounded-xl cursor-pointer transition-all ${
+            includeAlpha ? 'border-purple-500 bg-purple-900/20' : 'border-slate-600'
+          } ${alreadyDone ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            <input
+              type="checkbox"
+              checked={includeAlpha}
+              onChange={e => !alreadyDone && setIncludeAlpha(e.target.checked)}
+              className="w-5 h-5 accent-purple-500"
+              disabled={alreadyDone}
+            />
+            <div>
+              <div className="font-bold text-base text-white">α（2300語）を含める</div>
+              <div className="text-xs text-slate-400 mt-0.5">
+                {includeAlpha ? 'Part1〜4 + α（2300語）から出題' : 'Part1〜4のみ（1600語）から出題'}
+              </div>
             </div>
-          </div>
-        </label>
-      </div>
+          </label>
+        </div>
+      )}
 
       {/* ポイント説明 */}
       <div className="w-full max-w-sm bg-slate-800 rounded-xl px-4 py-4 mb-6 text-sm">
@@ -200,7 +204,7 @@ function DailyStartScreen({ onStart, timerSecs, alreadyDone }) {
           <span className="text-slate-300">捕獲済み単語 1問正解</span>
           <span className="text-cyan-400 font-bold">+2pt</span>
         </div>
-        {includeAlpha && (
+        {!oldBook && includeAlpha && (
           <div className="flex justify-between mb-1">
             <span className="text-slate-300">αあり 全問クリアボーナス</span>
             <span className="text-purple-400 font-bold">+15pt</span>
@@ -1162,8 +1166,10 @@ export default function Challenge() {
   }, [])
 
   async function handleStart(incAlpha) {
-    setIncludeAlpha(incAlpha)
-    const parts = incAlpha
+    // 旧版ユーザーはαを含めない
+    const useAlpha = incAlpha && !isOldBook()
+    setIncludeAlpha(useAlpha)
+    const parts = useAlpha
       ? ['Part1', 'Part2', 'Part3', 'Part4', 'α']
       : ['Part1', 'Part2', 'Part3', 'Part4']
 

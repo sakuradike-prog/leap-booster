@@ -13,9 +13,11 @@ import WordBadges from '../components/WordBadges'
 import { addStudyLog } from '../utils/studyLog'
 import { startSession, endSession } from '../utils/sessionLog'
 import { incrementConsecutiveCorrect, resetConsecutiveCorrect } from '../utils/consecutiveCorrect'
+import { isOldBook } from '../utils/bookVersion'
 
 
-const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
+const BASE_PARTS = ['Part1', 'Part2', 'Part3', 'Part4']
+const ALL_PARTS  = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const QUESTIONS = 10
 
 function getQuizTimerSecs() {
@@ -36,10 +38,13 @@ function shuffle(arr) {
 const PRACTICE_LAST_PART_KEY = 'vocaleap_practice_last_part'
 
 function PartSelect({ onStart }) {
+  const PARTS = isOldBook() ? BASE_PARTS : ALL_PARTS
   const [selected, setSelected] = useState(() => {
     try {
       const saved = localStorage.getItem(PRACTICE_LAST_PART_KEY)
-      return saved ? JSON.parse(saved) : ['Part1']
+      const parsed = saved ? JSON.parse(saved) : ['Part1']
+      // 旧版ユーザーはαを除外
+      return parsed.filter(p => PARTS.includes(p))
     } catch {
       return ['Part1']
     }
