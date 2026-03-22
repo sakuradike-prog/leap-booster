@@ -108,21 +108,29 @@ export default function Settings() {
     function loadVoices() {
       const all = window.speechSynthesis.getVoices()
 
-      // ノベルティ・非人間・かすれ声などをブロック
+      // ノベルティ・非人間・かすれ声などをブロック（英語名・日本語名両対応）
       const NOVELTY = [
+        // English names
         'bad news', 'bubbles', 'cellos', 'good news', 'jester', 'junior',
-        'organ', 'trinoids', 'whisper', 'wobble', 'zarvox', 'bells', 'boing',
-        'bottle', 'deranged', 'hysterical', 'pipe organ', 'spectral',
-        'superstar', 'tuvan', 'albert', 'fred', 'ralph', 'kathy', 'bruce',
-        '震え', 'かすれ',
+        'organ', 'trinoids', 'trinoid', 'whisper', 'wobble', 'zarvox',
+        'bells', 'boing', 'bottle', 'deranged', 'hysterical', 'pipe organ',
+        'spectral', 'superstar', 'tuvan', 'albert', 'fred', 'ralph', 'kathy', 'bruce',
+        // iOS日本語環境での表記
+        '道化', 'オルガン', 'スーパースター', 'トリノイド', 'バッドニュース',
+        'バブルス', 'セロス', 'グッドニュース', 'ジュニア', 'ウォブル',
+        'ザーボックス', 'ベルズ', 'ボイング', 'デレンジド', 'ヒステリカル',
+        'スペクトラル', 'チューバン', '震え', 'かすれ',
       ]
       const isNovelty = (v) => {
         const n = v.name.toLowerCase()
-        return NOVELTY.some(w => n.includes(w))
+        return NOVELTY.some(w => n.includes(w.toLowerCase()))
       }
 
+      // lang コードの揺れに対応（en-US / en_US / en-GB / en_GB 等すべての英語を対象）
+      const isEnglish = (v) => v.lang.replace('_', '-').toLowerCase().startsWith('en')
+
       const enVoices = all
-        .filter(v => (v.lang === 'en-US' || v.lang === 'en-GB') && !isNovelty(v))
+        .filter(v => isEnglish(v) && !isNovelty(v))
         // ローカル保存（iOSダウンロード高品質声含む）を上位に表示
         .sort((a, b) => (b.localService ? 1 : 0) - (a.localService ? 1 : 0))
 
