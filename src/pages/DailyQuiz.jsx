@@ -503,6 +503,7 @@ export default function DailyQuiz() {
     setReviewWords(res.words ?? [])
     const result = await recordStudy()
     if (result.streakUpdated) setStreakToast(result.currentStreak)
+    db.dailyQuizHistory.add({ date: new Date() }).catch(() => {})
     setShowSessionOverlay(true)
     setPhase('result')
   }

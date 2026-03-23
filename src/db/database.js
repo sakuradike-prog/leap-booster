@@ -46,3 +46,8 @@ db.version(7).stores({
   // 旧版と改訂版が混在しても正しくフィルタリングできるようにする
   words: '++id, word, leapPart, leapNumber, familyId, sourceBook',
 })
+
+db.version(8).stores({
+  // 4択練習完了履歴（ヒートマップ用、セッション開始ではなく完了時に記録）
+  dailyQuizHistory: '++id, date',
+})

@@ -667,6 +667,7 @@ export default function Warmup() {
   async function handleComplete(qs) {
     const result = await recordStudy()
     if (result.streakUpdated) setStreakToast(result.currentStreak)
+    db.warmupHistory.add({ date: new Date() }).catch(() => {})
     setShowSessionOverlay(true)
     setPhase('summary')
   }
