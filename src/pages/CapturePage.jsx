@@ -78,6 +78,7 @@ export default function CapturePage() {
   const [searching, setSearching] = useState(false)
   const [streakToast, setStreakToast] = useState(null)
   const [isNewCapture, setIsNewCapture] = useState(false)
+  const [earnedBonus, setEarnedBonus] = useState(false)
   // インライン編集
   const [editingMemo, setEditingMemo] = useState(false)
   const [editMemoValue, setEditMemoValue] = useState('')
@@ -116,6 +117,14 @@ export default function CapturePage() {
     const finalMemo = memo.trim() || WILD_LABEL
     const existing = await db.captured_words.where('leapNumber').equals(foundWord.leapNumber).first()
     const isNew = !existing
+
+    // 今日すでに新規捕獲した件数を確認（firstCapturedAt が今日以降のもの）
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+    const todayNewCount = await db.captured_words
+      .filter(r => !!r.firstCapturedAt && new Date(r.firstCapturedAt) >= todayStart)
+      .count()
+    const bonus = isNew && todayNewCount === 0
+
     if (existing) {
       await db.captured_words.update(existing.id, { memo: finalMemo, capturedAt: new Date() })
     } else {
@@ -124,13 +133,15 @@ export default function CapturePage() {
         word: foundWord.word,
         memo: finalMemo,
         capturedAt: new Date(),
+        firstCapturedAt: new Date(),
       })
     }
     playCaptureSound()
     const result = await recordStudy()
     if (result.streakUpdated) setStreakToast(result.currentStreak)
-    if (isNew) await addPoints(1)
+    if (bonus) await addPoints(1)
     setIsNewCapture(isNew)
+    setEarnedBonus(bonus)
     setSavedMemo(finalMemo)
     setRegistered(true)
   }
@@ -230,8 +241,8 @@ export default function CapturePage() {
             </h2>
             <p style={{ color: '#ffffff', fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{foundWord.word}</p>
             <p style={{ color: '#67e8f9', fontSize: 13, marginBottom: 3 }}>No.{foundWord.leapNumber} {foundWord.leapPart}</p>
-            <p style={{ color: '#475569', fontSize: 13, marginBottom: isNewCapture ? 12 : 36 }}>📍 {savedMemo}</p>
-            {isNewCapture && (
+            <p style={{ color: '#475569', fontSize: 13, marginBottom: earnedBonus ? 12 : 36 }}>📍 {savedMemo}</p>
+            {earnedBonus && (
               <div style={{
                 display: 'inline-block',
                 background: 'linear-gradient(90deg, rgba(59,130,246,0.25), rgba(99,102,241,0.25))',
@@ -242,7 +253,7 @@ export default function CapturePage() {
                 animation: 'cpSlideUp .4s ease-out .65s both',
                 opacity: 0,
               }}>
-                <span style={{ color: '#818cf8', fontSize: 13, fontWeight: 700 }}>初回捕獲ボーナス　</span>
+                <span style={{ color: '#818cf8', fontSize: 13, fontWeight: 700 }}>今日の捕獲ボーナス　</span>
                 <span style={{ color: '#a5b4fc', fontSize: 20, fontWeight: 900 }}>+1 pt</span>
               </div>
             )}
