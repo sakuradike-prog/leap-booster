@@ -121,16 +121,20 @@ export default function Stats() {
       since.setHours(0, 0, 0, 0)
 
       const sinceTime = since.getTime()
-      const [allChLogs, allWuLogs] = await Promise.all([
+      const sinceKey = dayKey(since)
+      const [allChLogs, allWuLogs, allSessionLogs] = await Promise.all([
         db.challengeHistory.toArray(),
         db.warmupHistory.toArray(),
+        db.session_logs.toArray(),
       ])
       const chLogs = allChLogs.filter(r => new Date(r.date).getTime() >= sinceTime)
       const wuLogs = allWuLogs.filter(r => new Date(r.date).getTime() >= sinceTime)
+      const practiceLogs = allSessionLogs.filter(r => r.mode === 'practice' && r.date >= sinceKey)
 
       const activeKeys = new Set([
         ...chLogs.map(r => dayKey(r.date)),
         ...wuLogs.map(r => dayKey(r.date)),
+        ...practiceLogs.map(r => r.date),
       ])
 
       const clearKeys = new Set(
