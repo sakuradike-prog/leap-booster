@@ -188,21 +188,23 @@ export default function WordDetailScreen({ word, onBack, sessionWords = null, in
   return (
     <div className="min-h-screen bg-slate-950">
       {/* sticky ヘッダー */}
-      <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60 px-5 py-3 flex items-center justify-between">
-        <button
-          onClick={handleBack}
-          className={backAsLink
-            ? 'text-slate-500 hover:text-slate-300 text-sm active:opacity-60 underline underline-offset-2'
-            : 'text-slate-400 hover:text-white text-base active:opacity-60'
-          }
-        >
-          {backLabel}
-        </button>
-        {sessionWords && (
-          <span className="text-slate-600 text-xs tabular-nums">
-            {sessionIdx + 1} / {sessionWords.length}
-          </span>
-        )}
+      <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800/60">
+        <div className="max-w-[600px] mx-auto px-5 py-3 flex items-center justify-between">
+          <button
+            onClick={handleBack}
+            className={backAsLink
+              ? 'text-slate-500 hover:text-slate-300 text-sm active:opacity-60 underline underline-offset-2'
+              : 'text-slate-400 hover:text-white text-base active:opacity-60'
+            }
+          >
+            {backLabel}
+          </button>
+          {sessionWords && (
+            <span className="text-slate-600 text-xs tabular-nums">
+              {sessionIdx + 1} / {sessionWords.length}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="max-w-sm md:max-w-[600px] mx-auto text-white flex flex-col px-5 py-6 overflow-y-auto">
