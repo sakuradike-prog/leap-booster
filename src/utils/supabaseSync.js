@@ -2,7 +2,11 @@ import { supabase } from '../lib/supabase'
 
 // ローカル（camelCase）→ Supabase（snake_case）変換
 function toRemote(userId, stats) {
-  const toDateStr = (v) => v ? new Date(v).toISOString().split('T')[0] : null
+  const toDateStr = (v) => {
+    if (!v) return null
+    const d = new Date(v)
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  }
   return {
     user_id: userId,
     total_points: stats.totalPoints ?? 0,
