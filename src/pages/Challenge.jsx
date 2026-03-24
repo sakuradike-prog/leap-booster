@@ -1255,7 +1255,7 @@ export default function Challenge() {
       totalTime: totalTime ?? null,
     })
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.id) syncChallengeHistory(session.user.id, { date: new Date(), result: GOAL, cleared: true, totalTime: totalTime ?? null })
+      if (session?.user?.id) syncChallengeHistory(session.user.id, { date: new Date(), result: GOAL, cleared: true, totalTime: totalTime ?? null, parts: selectedParts })
     })
     setAlreadyDone(true)
     setPhase('clear')
@@ -1283,7 +1283,7 @@ export default function Challenge() {
       cleared: false,
     })
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.id) syncChallengeHistory(session.user.id, { date: new Date(), result: streak, cleared: false })
+      if (session?.user?.id) syncChallengeHistory(session.user.id, { date: new Date(), result: streak, cleared: false, parts: selectedParts })
     })
     const studyResult = await recordStudy()
     if (studyResult.streakUpdated) setStreakToast(studyResult.currentStreak)
@@ -1310,7 +1310,7 @@ export default function Challenge() {
       cleared: false,
     })
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.id) syncChallengeHistory(session.user.id, { date: new Date(), result: streak, cleared: false })
+      if (session?.user?.id) syncChallengeHistory(session.user.id, { date: new Date(), result: streak, cleared: false, parts: selectedParts })
     })
     const studyResult = await recordStudy()
     if (studyResult.streakUpdated) setStreakToast(studyResult.currentStreak)

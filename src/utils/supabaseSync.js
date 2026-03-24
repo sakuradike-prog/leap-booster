@@ -307,6 +307,7 @@ export async function syncChallengeHistory(userId, entry) {
       cleared:    entry.cleared ?? false,
       score:      entry.result  ?? 0,
       total_time: entry.totalTime ?? null,
+      parts:      entry.parts    ?? null,
     }, { onConflict: 'user_id,date' })
     if (error) console.warn('[Vocaleap] challenge_history sync失敗:', error.message)
   } catch (err) { console.warn('[Vocaleap] challenge_history sync例外:', err) }
@@ -320,27 +321,37 @@ export async function mergeChallengeHistory(userId, db) {
     if (error || !remote) return
 
     const local = await db.challengeHistory.toArray()
-    const localDates = new Set(local.map(e => toLocalDateStr(e.date)))
+    const localByDate = {}
+    for (const e of local) localByDate[toLocalDateStr(e.date)] = e
 
+    // remote → local（新規追加 or 既存レコードの更新）
     for (const rc of remote) {
-      if (!localDates.has(rc.date)) {
+      const lc = localByDate[rc.date]
+      if (!lc) {
+        // 新規追加
         await db.challengeHistory.add({
           date:      new Date(rc.date),
-          result:    rc.score     ?? 0,
-          cleared:   rc.cleared   ?? false,
+          result:    rc.score      ?? 0,
+          cleared:   rc.cleared    ?? false,
           totalTime: rc.total_time ?? null,
+          parts:     rc.parts      ?? null,
         }).catch(() => {})
+      } else {
+        // 既存レコードを更新（スコアが大きい or totalTime/partsが補完できる場合）
+        const upd = {}
+        if ((rc.score ?? 0) > (lc.result ?? 0))           upd.result    = rc.score
+        if (rc.cleared && !lc.cleared)                     upd.cleared   = true
+        if (rc.total_time != null && lc.totalTime == null) upd.totalTime = rc.total_time
+        if (rc.parts      != null && lc.parts      == null) upd.parts    = rc.parts
+        if (Object.keys(upd).length > 0) {
+          await db.challengeHistory.update(lc.id, upd).catch(() => {})
+        }
       }
     }
 
-    // 日付ごとに最良スコアをupsert
+    // local → remote（全件upsertで漏れを補完）
     const all = await db.challengeHistory.toArray()
-    const bestByDate = {}
-    for (const e of all) {
-      const ds = toLocalDateStr(e.date)
-      if (!bestByDate[ds] || (e.result ?? 0) > (bestByDate[ds].result ?? 0)) bestByDate[ds] = e
-    }
-    for (const e of Object.values(bestByDate)) await syncChallengeHistory(userId, e)
+    for (const e of all) await syncChallengeHistory(userId, e)
   } catch (err) { console.warn('[Vocaleap] mergeChallengeHistory例外:', err) }
 }
 
