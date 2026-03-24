@@ -101,7 +101,7 @@ function PartSelect({ onStart }) {
             key={part}
             onClick={() => toggle(part)}
             className={`flex items-center justify-between w-full py-4 px-5 rounded-xl text-lg font-bold border-2 transition-all ${
-              !useChecked && selected.includes(part)
+              selected.includes(part)
                 ? 'bg-blue-600 border-blue-400 text-white'
                 : 'bg-slate-800 border-slate-600 text-slate-400'
             }`}
