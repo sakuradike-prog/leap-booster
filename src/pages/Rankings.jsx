@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { fetchRankings } from '../utils/supabaseSync'
+import { fetchRankings, fetchClearTimeRankings } from '../utils/supabaseSync'
 
 const TABS = [
   { key: 'total_points',          label: 'ポイント',    unit: 'pt', emoji: '🏆' },
   { key: 'current_streak',        label: 'ストリーク',  unit: '日', emoji: '🔥' },
   { key: 'challenge_clear_count', label: 'チャレンジ',  unit: '回', emoji: '⚡' },
+  { key: 'clear_time',            label: 'タイム',      unit: '秒', emoji: '⏱' },
 ]
 
 function medalEmoji(rank) {
@@ -21,6 +22,7 @@ export default function Rankings() {
   const { user, loading: authLoading } = useAuth()
   const [tab, setTab] = useState(0)
   const [rows, setRows] = useState([])
+  const [clearTimeRows, setClearTimeRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -29,17 +31,26 @@ export default function Rankings() {
     if (!user) { setLoading(false); return }
     setLoading(true)
     setError(null)
-    fetchRankings()
-      .then(data => { setRows(data); setLoading(false) })
+    Promise.all([
+      fetchRankings(),
+      fetchClearTimeRankings(),
+    ])
+      .then(([rankData, clearData]) => {
+        setRows(rankData)
+        setClearTimeRows(clearData)
+        setLoading(false)
+      })
       .catch(err => { setError(err.message); setLoading(false) })
   }, [user, authLoading])
 
   const currentTab = TABS[tab]
 
-  // 現在のタブでソート（0より大きい値のみ表示）
-  const sorted = [...rows]
-    .filter(r => (r[currentTab.key] ?? 0) > 0)
-    .sort((a, b) => b[currentTab.key] - a[currentTab.key])
+  // 現在のタブでソート（0より大きい値のみ表示）、タイムタブは別処理
+  const sorted = tab === 3
+    ? clearTimeRows
+    : [...rows]
+        .filter(r => (r[currentTab.key] ?? 0) > 0)
+        .sort((a, b) => b[currentTab.key] - a[currentTab.key])
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
@@ -110,65 +121,132 @@ export default function Rankings() {
               </div>
             )}
 
+            {/* タイムランキングのセクションタイトル */}
+            {tab === 3 && !loading && !error && (
+              <p className="text-slate-500 text-xs text-center mb-4">30問チャレンジクリアタイムランキング</p>
+            )}
+
             {/* ランキングリスト */}
             {!loading && !error && sorted.length > 0 && (
               <div className="flex flex-col gap-2">
-                {sorted.map((row, idx) => {
-                  const rank = idx + 1
-                  const isMe = row.user_id === user.id
-                  const name = row.display_name || '名無し'
-                  const value = row[currentTab.key] ?? 0
-                  const m = medalEmoji(rank)
+                {tab === 3 ? (
+                  sorted.map((row, idx) => {
+                    const rank = idx + 1
+                    const isMe = row.user_id === user.id
+                    const name = row.display_name || '名無し'
+                    const m = medalEmoji(rank)
+                    const dateStr = row.date
+                      ? (() => { const d = new Date(row.date); return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}` })()
+                      : null
 
-                  return (
-                    <div
-                      key={row.user_id}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all ${
-                        isMe
-                          ? 'bg-yellow-900/40 border-yellow-500/60'
-                          : rank <= 3
-                          ? 'bg-slate-800 border-slate-600'
-                          : 'bg-slate-800/60 border-slate-700/60'
-                      }`}
-                    >
-                      {/* 順位 */}
-                      <div className="w-8 text-center flex-shrink-0">
-                        {m ? (
-                          <span className="text-xl leading-none">{m}</span>
-                        ) : (
-                          <span className="text-slate-500 font-bold text-sm tabular-nums">
-                            {rank}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* ニックネーム */}
-                      <div className="flex-1 min-w-0">
-                        <div className={`font-bold truncate ${isMe ? 'text-yellow-300' : 'text-white'}`}>
-                          {name}
-                          {isMe && (
-                            <span className="ml-1.5 text-xs text-yellow-600 font-normal">
-                              （自分）
+                    return (
+                      <div
+                        key={row.user_id}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all ${
+                          isMe
+                            ? 'bg-yellow-900/40 border-yellow-500/60'
+                            : rank <= 3
+                            ? 'bg-slate-800 border-slate-600'
+                            : 'bg-slate-800/60 border-slate-700/60'
+                        }`}
+                      >
+                        {/* 順位 */}
+                        <div className="w-8 text-center flex-shrink-0">
+                          {m ? (
+                            <span className="text-xl leading-none">{m}</span>
+                          ) : (
+                            <span className="text-slate-500 font-bold text-sm tabular-nums">
+                              {rank}
                             </span>
                           )}
                         </div>
-                      </div>
 
-                      {/* スコア */}
-                      <div className="flex-shrink-0 text-right">
-                        <span
-                          className={`font-black tabular-nums ${isMe ? 'text-yellow-300' : 'text-white'}`}
-                          style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22 }}
-                        >
-                          {value.toLocaleString()}
-                        </span>
-                        <span className="text-xs text-slate-500 ml-0.5">
-                          {currentTab.unit}
-                        </span>
+                        {/* ニックネーム */}
+                        <div className="flex-1 min-w-0">
+                          <div className={`font-bold truncate ${isMe ? 'text-yellow-300' : 'text-white'}`}>
+                            {name}
+                            {isMe && (
+                              <span className="ml-1.5 text-xs text-yellow-600 font-normal">
+                                （自分）
+                              </span>
+                            )}
+                          </div>
+                          {dateStr && (
+                            <div className="text-xs text-slate-500">{dateStr}</div>
+                          )}
+                        </div>
+
+                        {/* タイム */}
+                        <div className="flex-shrink-0 text-right">
+                          <span
+                            className={`font-black tabular-nums ${isMe ? 'text-yellow-300' : 'text-white'}`}
+                            style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22 }}
+                          >
+                            {row.total_time}
+                          </span>
+                          <span className="text-xs text-slate-500 ml-0.5">秒</span>
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })
+                ) : (
+                  sorted.map((row, idx) => {
+                    const rank = idx + 1
+                    const isMe = row.user_id === user.id
+                    const name = row.display_name || '名無し'
+                    const value = row[currentTab.key] ?? 0
+                    const m = medalEmoji(rank)
+
+                    return (
+                      <div
+                        key={row.user_id}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all ${
+                          isMe
+                            ? 'bg-yellow-900/40 border-yellow-500/60'
+                            : rank <= 3
+                            ? 'bg-slate-800 border-slate-600'
+                            : 'bg-slate-800/60 border-slate-700/60'
+                        }`}
+                      >
+                        {/* 順位 */}
+                        <div className="w-8 text-center flex-shrink-0">
+                          {m ? (
+                            <span className="text-xl leading-none">{m}</span>
+                          ) : (
+                            <span className="text-slate-500 font-bold text-sm tabular-nums">
+                              {rank}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* ニックネーム */}
+                        <div className="flex-1 min-w-0">
+                          <div className={`font-bold truncate ${isMe ? 'text-yellow-300' : 'text-white'}`}>
+                            {name}
+                            {isMe && (
+                              <span className="ml-1.5 text-xs text-yellow-600 font-normal">
+                                （自分）
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* スコア */}
+                        <div className="flex-shrink-0 text-right">
+                          <span
+                            className={`font-black tabular-nums ${isMe ? 'text-yellow-300' : 'text-white'}`}
+                            style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22 }}
+                          >
+                            {value.toLocaleString()}
+                          </span>
+                          <span className="text-xs text-slate-500 ml-0.5">
+                            {currentTab.unit}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
               </div>
             )}
 

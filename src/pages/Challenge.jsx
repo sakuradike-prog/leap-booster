@@ -415,6 +415,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd, onQuitHome })
 
   const doneRef = useRef(false)
   const blockTimingsRef = useRef([])
+  const allQuestionTimesRef = useRef([])
   const capturedTimeLeftRef = useRef(timerSecs)
   const choicesRef = useRef(null)
   const questionStartRef = useRef(Date.now())
@@ -568,12 +569,14 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd, onQuitHome })
       }
 
       const next = streak + 1
+      allQuestionTimesRef.current.push(Math.min(Math.round((Date.now() - questionStartRef.current) / 1000), timerSecs))
       blockTimingsRef.current.push({ word, timeRemaining: capturedTimeLeftRef.current })
 
       if (next >= GOAL) {
         const lastWords   = blockTimingsRef.current.map(t => t.word)
         const lastTimings = [...blockTimingsRef.current]
-        setTimeout(() => onClear(lastWords, lastTimings), 600)
+        const totalTime = allQuestionTimesRef.current.reduce((a, b) => a + b, 0)
+        setTimeout(() => onClear(lastWords, lastTimings, totalTime), 600)
         return
       }
 
@@ -1161,6 +1164,7 @@ export default function Challenge() {
   const [normalWordCount, setNormalWordCount] = useState(0)
   const [clearWords, setClearWords] = useState([])
   const [clearTimings, setClearTimings] = useState([])
+  const [clearTotalTime, setClearTotalTime] = useState(null)
   const [timerSecs] = useState(DEFAULT_TIMER_SECS)
   const [streakToast, setStreakToast] = useState(null)
   const [timeoutEarnedPoints, setTimeoutEarnedPoints] = useState(0)
@@ -1217,9 +1221,10 @@ export default function Challenge() {
     setPhase('playing')
   }
 
-  async function handleClear(lastWords, lastTimings) {
+  async function handleClear(lastWords, lastTimings, totalTime) {
     const ms = startTimeRef.current ? Date.now() - startTimeRef.current : null
     setElapsed(ms)
+    setClearTotalTime(totalTime ?? null)
     setClearWords(lastWords ?? [])
     setClearTimings(lastTimings ?? [])
 
@@ -1247,9 +1252,10 @@ export default function Challenge() {
       parts: selectedParts,
       result: GOAL,
       cleared: true,
+      totalTime: totalTime ?? null,
     })
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.id) syncChallengeHistory(session.user.id, { date: new Date(), result: GOAL, cleared: true })
+      if (session?.user?.id) syncChallengeHistory(session.user.id, { date: new Date(), result: GOAL, cleared: true, totalTime: totalTime ?? null })
     })
     setAlreadyDone(true)
     setPhase('clear')

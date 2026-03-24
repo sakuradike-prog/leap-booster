@@ -302,10 +302,11 @@ export async function syncChallengeHistory(userId, entry) {
   if (!userId) return
   try {
     const { error } = await supabase.from('challenge_history').upsert({
-      user_id: userId,
-      date:    toLocalDateStr(entry.date ?? new Date()),
-      cleared: entry.cleared ?? false,
-      score:   entry.result  ?? 0,
+      user_id:    userId,
+      date:       toLocalDateStr(entry.date ?? new Date()),
+      cleared:    entry.cleared ?? false,
+      score:      entry.result  ?? 0,
+      total_time: entry.totalTime ?? null,
     }, { onConflict: 'user_id,date' })
     if (error) console.warn('[Vocaleap] challenge_history sync失敗:', error.message)
   } catch (err) { console.warn('[Vocaleap] challenge_history sync例外:', err) }
@@ -450,6 +451,56 @@ export async function deleteCheckedWord(userId, leapNumber) {
       .eq('leap_number', leapNumber)
     if (error) console.warn('[Vocaleap] checked_word delete失敗:', error.message)
   } catch (err) { console.warn('[Vocaleap] checked_word delete例外:', err) }
+}
+
+/** クリアタイムランキング取得（cleared=true かつ total_time IS NOT NULL のベストタイム） */
+export async function fetchClearTimeRankings() {
+  try {
+    const { data: history, error: histError } = await supabase
+      .from('challenge_history')
+      .select('user_id, total_time, date')
+      .eq('cleared', true)
+      .not('total_time', 'is', null)
+    if (histError) { console.warn('[Vocaleap] fetchClearTimeRankings history失敗:', histError.message); return [] }
+
+    const { data: userStats, error: statsError } = await supabase
+      .from('user_stats')
+      .select('user_id, display_name')
+    if (statsError) { console.warn('[Vocaleap] fetchClearTimeRankings stats失敗:', statsError.message); return [] }
+
+    const displayNameMap = {}
+    for (const u of (userStats ?? [])) {
+      displayNameMap[u.user_id] = u.display_name
+    }
+
+    // ユーザーごとにベスト（最小）タイムを保持、同タイム時は新しい日付を優先
+    const bestByUser = {}
+    for (const row of (history ?? [])) {
+      const existing = bestByUser[row.user_id]
+      if (
+        !existing ||
+        row.total_time < existing.total_time ||
+        (row.total_time === existing.total_time && new Date(row.date) > new Date(existing.date))
+      ) {
+        bestByUser[row.user_id] = row
+      }
+    }
+
+    return Object.values(bestByUser)
+      .map(row => ({
+        user_id:      row.user_id,
+        display_name: displayNameMap[row.user_id] ?? null,
+        total_time:   row.total_time,
+        date:         row.date,
+      }))
+      .sort((a, b) => {
+        if (a.total_time !== b.total_time) return a.total_time - b.total_time
+        return new Date(b.date) - new Date(a.date)
+      })
+  } catch (err) {
+    console.warn('[Vocaleap] fetchClearTimeRankings例外:', err)
+    return []
+  }
 }
 
 /** ログイン時：checked_words双方向マージ */
