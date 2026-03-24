@@ -78,7 +78,7 @@ export default function Stats() {
           .limit(20)
         setChallengeHistory((chData ?? []).map(rc => ({
           id:        rc.id,
-          date:      new Date(rc.date + 'T00:00:00'), // ローカル日付として解釈
+          date:      rc.recorded_at ? new Date(rc.recorded_at) : new Date(rc.date + 'T00:00:00'),
           result:    rc.score      ?? 0,
           cleared:   rc.cleared    ?? false,
           totalTime: rc.total_time ?? null,

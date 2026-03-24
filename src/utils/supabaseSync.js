@@ -302,12 +302,13 @@ export async function syncChallengeHistory(userId, entry) {
   if (!userId) return
   try {
     const { error } = await supabase.from('challenge_history').upsert({
-      user_id:    userId,
-      date:       toLocalDateStr(entry.date ?? new Date()),
-      cleared:    entry.cleared ?? false,
-      score:      entry.result  ?? 0,
-      total_time: entry.totalTime ?? null,
-      parts:      entry.parts    ?? null,
+      user_id:     userId,
+      date:        toLocalDateStr(entry.date ?? new Date()),
+      cleared:     entry.cleared    ?? false,
+      score:       entry.result     ?? 0,
+      total_time:  entry.totalTime  ?? null,
+      parts:       entry.parts      ?? null,
+      recorded_at: entry.date ? new Date(entry.date).toISOString() : new Date().toISOString(),
     }, { onConflict: 'user_id,date' })
     if (error) console.warn('[Vocaleap] challenge_history sync失敗:', error.message)
   } catch (err) { console.warn('[Vocaleap] challenge_history sync例外:', err) }
@@ -330,7 +331,7 @@ export async function mergeChallengeHistory(userId, db) {
       if (!lc) {
         // 新規追加
         await db.challengeHistory.add({
-          date:      new Date(rc.date),
+          date:      rc.recorded_at ? new Date(rc.recorded_at) : new Date(rc.date + 'T00:00:00'),
           result:    rc.score      ?? 0,
           cleared:   rc.cleared    ?? false,
           totalTime: rc.total_time ?? null,
