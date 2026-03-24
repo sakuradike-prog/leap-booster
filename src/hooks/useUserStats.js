@@ -104,9 +104,13 @@ export function useUserStats() {
     // 今日 or 昨日なら問題なし
     if (isSameDay(last, today) || isYesterday(last)) return null
 
-    // 1日だけ空いた + フリーズ残りあり → フリーズ消費してストリーク維持
-    const daysMissed = Math.floor((today - last) / (1000 * 60 * 60 * 24))
-    if (daysMissed === 1 && (current.freezeCount ?? 0) > 0) {
+    // カレンダー日付差（ローカル日付基準）で計算
+    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const lastDate  = new Date(last.getFullYear(),  last.getMonth(),  last.getDate())
+    const dayDiff = Math.round((todayDate - lastDate) / (1000 * 60 * 60 * 24))
+
+    // dayDiff === 2：ちょうど1日飛んだ → フリーズ発動可能
+    if (dayDiff === 2 && (current.freezeCount ?? 0) > 0) {
       // lastStudyDate を昨日に設定することで、今日勉強するとストリーク+1になる
       const yesterday = new Date(today)
       yesterday.setDate(today.getDate() - 1)

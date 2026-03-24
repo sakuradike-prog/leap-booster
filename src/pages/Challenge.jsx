@@ -232,7 +232,7 @@ function DailyStartScreen({ onStart, timerSecs, alreadyDone, alphaCount }) {
 //   onContinue    - 次のブロックへ進む
 //   onHonestEnd   - (未使用・後方互換のため残す)
 //   continueLabel - 続行ボタンのラベル（省略時はデフォルト）
-function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd, continueLabel }) {
+function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd, onQuitHome, continueLabel }) {
   // phase: 'intro' → 'slideshow' → 'choice'
   const [phase, setPhase] = useState('intro')
   const navigate = useNavigate()
@@ -355,7 +355,13 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd, continu
 
           {/* 終了してホームへ */}
           <button
-            onClick={() => navigate('/')}
+            onClick={() => {
+              if (blockNumber >= 2 && onQuitHome) {
+                onQuitHome()
+              } else {
+                navigate('/')
+              }
+            }}
             className="w-full py-4 px-5 text-base font-bold bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors text-left text-slate-400 hover:text-slate-200"
           >
             🏠 終了してホームへ
@@ -392,7 +398,7 @@ function CMBreak({ words, timings, blockNumber, onContinue, onHonestEnd, continu
 
 // ---- 出題画面（2段階4択制） ----
 // words は {word, choices, correctIdx}[] の配列
-function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
+function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd, onQuitHome }) {
   const [current, setCurrent] = useState(0)
   const [streak, setStreak] = useState(0)
   const [flipping, setFlipping] = useState(false)
@@ -640,6 +646,7 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd }) {
           setCMData(null)
           onHonestEnd(suspiciousWord, streak)
         }}
+        onQuitHome={onQuitHome}
       />
     )
   }
@@ -1270,6 +1277,13 @@ export default function Challenge() {
     setPhase('timeout')
   }
 
+  // CMブレイク2（20問後）から「🏠 終了してホームへ」→ ストリーク記録してホームへ
+  async function handleQuitHome() {
+    const studyResult = await recordStudy()
+    if (studyResult.streakUpdated) setStreakToast(studyResult.currentStreak)
+    navigate('/')
+  }
+
   // 正直終了（CMブレイク3択から）
   async function handleHonestEnd(word, streak) {
     await calcAndSaveTimeoutPoints(streak)
@@ -1298,6 +1312,7 @@ export default function Challenge() {
         onClear={handleClear}
         onTimeout={handleTimeout}
         onHonestEnd={handleHonestEnd}
+        onQuitHome={handleQuitHome}
       />
     )
   }
