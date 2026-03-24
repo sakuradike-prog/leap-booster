@@ -39,19 +39,21 @@ function shuffle(arr) {
 // ---- パート選択画面 ----
 const PRACTICE_LAST_PART_KEY = 'vocaleap_practice_last_part'
 
+const CHECKED_MIN = 10
+const VALID_PARTS = [...ALL_PARTS, '__checked__']
+
 function PartSelect({ onStart }) {
   const [selected, setSelected] = useState(() => {
     try {
       const saved = localStorage.getItem(PRACTICE_LAST_PART_KEY)
       const parsed = saved ? JSON.parse(saved) : ['Part1']
-      return parsed.filter(p => ALL_PARTS.includes(p))
+      return parsed.filter(p => VALID_PARTS.includes(p))
     } catch {
       return ['Part1']
     }
   })
   const [wordCounts, setWordCounts] = useState({})
   const [checkedCount, setCheckedCount] = useState(0)
-  const [useChecked, setUseChecked] = useState(false)
   const [maskMode, setMaskMode] = useState(false)
   const navigate = useNavigate()
 
@@ -71,7 +73,6 @@ function PartSelect({ onStart }) {
   }, [])
 
   function toggle(part) {
-    setUseChecked(false)
     setSelected(prev => {
       const next = prev.includes(part) ? prev.filter(p => p !== part) : [...prev, part]
       try { localStorage.setItem(PRACTICE_LAST_PART_KEY, JSON.stringify(next)) } catch { /* ignore */ }
@@ -79,20 +80,8 @@ function PartSelect({ onStart }) {
     })
   }
 
-  function handleCheckedToggle() {
-    if (checkedCount === 0) return
-    setUseChecked(prev => {
-      if (!prev) setSelected([]) // チェックモードON時は通常選択を解除
-      return !prev
-    })
-  }
-
   function handleStart() {
-    if (useChecked) {
-      onStart(['__checked__'], maskMode)
-    } else {
-      onStart(selected, maskMode)
-    }
+    onStart(selected, maskMode)
   }
 
   return (
@@ -126,19 +115,21 @@ function PartSelect({ onStart }) {
 
         {/* チェックした単語オプション */}
         <button
-          onClick={handleCheckedToggle}
-          disabled={checkedCount === 0}
+          onClick={() => checkedCount >= CHECKED_MIN && toggle('__checked__')}
+          disabled={checkedCount < CHECKED_MIN}
           className={`flex items-center justify-between w-full py-4 px-5 rounded-xl text-lg font-bold border-2 transition-all ${
-            useChecked
-              ? 'bg-amber-600 border-amber-400 text-white'
-              : checkedCount === 0
-                ? 'bg-slate-800 border-slate-700 text-slate-600 cursor-not-allowed'
+            checkedCount < CHECKED_MIN
+              ? 'bg-orange-900/40 border-orange-700 text-orange-400 cursor-not-allowed'
+              : selected.includes('__checked__')
+                ? 'bg-blue-600 border-blue-400 text-white'
                 : 'bg-slate-800 border-slate-600 text-slate-400'
           }`}
         >
           <span>☑ チェックした単語</span>
           <span className="text-sm font-normal">
-            {checkedCount === 0 ? 'チェックした単語がありません' : `${checkedCount}語`}
+            {checkedCount < CHECKED_MIN
+              ? 'チェックした単語がありません（または少なすぎます）'
+              : `${checkedCount}語`}
           </span>
         </button>
       </div>
@@ -147,7 +138,7 @@ function PartSelect({ onStart }) {
       <div className="w-full max-w-sm md:max-w-[600px] flex items-center gap-3">
         <button
           onClick={handleStart}
-          disabled={!useChecked && selected.length === 0}
+          disabled={selected.length === 0}
           className="flex-1 py-5 text-xl font-bold bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-2xl transition-colors"
         >
           スタート
@@ -524,24 +515,39 @@ export default function DailyQuiz() {
   async function handleStart(parts, mask = false) {
     setMaskMode(mask)
 
-    let pool, allMeanings
-    if (parts.includes('__checked__')) {
-      // チェックした単語モード
+    const hasChecked = parts.includes('__checked__')
+    const regularParts = parts.filter(p => p !== '__checked__')
+
+    let combined = []
+
+    // チェックした単語を取得
+    if (hasChecked) {
       const checkedEntries = await db.checked_words.toArray()
-      if (checkedEntries.length < 4) return
       const leapNums = checkedEntries.map(c => c.leapNumber)
-      const checkedWords = await db.words.where('leapNumber').anyOf(leapNums).and(sourceBookFilter).toArray()
-      if (checkedWords.length < 4) return
-      // 選択肢用に全単語から意味を取得
-      const fullWords = await db.words.and(sourceBookFilter).toArray()
-      pool = shuffle(checkedWords).slice(0, QUESTIONS)
-      allMeanings = fullWords.map(w => w.meaning)
-    } else {
-      const allWords = await db.words.where('leapPart').anyOf(parts).and(sourceBookFilter).toArray()
-      if (allWords.length < 4) return
-      pool = shuffle(allWords).slice(0, QUESTIONS)
-      allMeanings = allWords.map(w => w.meaning)
+      if (leapNums.length > 0) {
+        const checkedWords = await db.words.where('leapNumber').anyOf(leapNums).and(sourceBookFilter).toArray()
+        combined = [...combined, ...checkedWords]
+      }
     }
+
+    // 通常パートの単語を取得
+    if (regularParts.length > 0) {
+      const regularWords = await db.words.where('leapPart').anyOf(regularParts).and(sourceBookFilter).toArray()
+      combined = [...combined, ...regularWords]
+    }
+
+    // 重複を除去（チェック単語と通常パートで被る場合）
+    const seen = new Set()
+    const deduped = combined.filter(w => {
+      if (seen.has(w.id)) return false
+      seen.add(w.id)
+      return true
+    })
+
+    if (deduped.length < 4) return
+
+    const pool = shuffle(deduped).slice(0, QUESTIONS)
+    const allMeanings = deduped.map(w => w.meaning)
 
     const capturedEntries = await db.captured_words.toArray()
     const capturedNums = new Set(capturedEntries.map(c => c.leapNumber))
