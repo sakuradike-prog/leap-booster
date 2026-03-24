@@ -24,7 +24,7 @@ export default function StudyHistory() {
   useEffect(() => {
     async function load() {
       const [allCards, capturedList] = await Promise.all([
-        db.cards.filter(c => !!c.lastReviewed).toArray(),
+        db.cards.toArray(),
         db.captured_words.toArray(),
       ])
 
@@ -48,6 +48,12 @@ export default function StudyHistory() {
         if (!leapNumMap[w.leapNumber]) leapNumMap[w.leapNumber] = w
       }
 
+      // wordId → incorrectCount（色分け用）
+      const wordIdToIncorrectCount = {}
+      for (const card of allCards) {
+        if (card.wordId) wordIdToIncorrectCount[card.wordId] = card.incorrectCount ?? 0
+      }
+
       // 日付でグループ化（wordId + dateKey でユニーク）
       const dateMap = {}
       const seenKeys = new Set()
@@ -57,10 +63,11 @@ export default function StudyHistory() {
         if (seenKeys.has(dedupeKey)) return
         seenKeys.add(dedupeKey)
         if (!dateMap[key]) dateMap[key] = { dateKey: key, date, entries: [] }
-        dateMap[key].entries.push({ word, date: new Date(date), isCaptured })
+        const hasError = (wordIdToIncorrectCount[word.id] ?? 0) >= 1
+        dateMap[key].entries.push({ word, date: new Date(date), isCaptured, hasError })
       }
 
-      // cards からの履歴
+      // cards からの履歴（lastReviewed があるもののみ）
       for (const card of allCards) {
         if (!card.lastReviewed || !wordMap[card.wordId]) continue
         const d = new Date(card.lastReviewed)
@@ -140,7 +147,7 @@ export default function StudyHistory() {
                   <span className="text-slate-600 font-normal ml-2">{entries.length}件</span>
                 </p>
                 <div className="flex flex-col gap-1">
-                  {entries.map(({ word, isCaptured }, i) => (
+                  {entries.map(({ word, isCaptured, hasError }, i) => (
                     <button
                       key={`${word.id}_${i}`}
                       onClick={() => {
@@ -151,7 +158,7 @@ export default function StudyHistory() {
                     >
                       <span className="text-slate-500 text-xs w-14 shrink-0">No.{word.leapNumber}</span>
                       <WordBadges isCaptured={isCaptured} />
-                      <span className="text-white font-bold flex-1 truncate">{word.word}</span>
+                      <span className={`font-bold flex-1 truncate ${hasError ? 'text-blue-400' : 'text-white'}`}>{word.word}</span>
                       <span className="text-slate-500 text-sm truncate max-w-28">{word.meaning}</span>
                     </button>
                   ))}

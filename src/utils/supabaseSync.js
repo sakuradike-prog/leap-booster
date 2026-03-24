@@ -423,3 +423,62 @@ export async function syncSessionLog(userId, session) {
     console.warn('[Vocaleap] session_log sync例外:', err)
   }
 }
+
+// ── CHECKED WORDS ─────────────────────────────────────────────────────────────
+
+/** checked_word 1件をupsert（チェック追加） */
+export async function syncCheckedWord(userId, leapNumber, word) {
+  if (!userId) return
+  try {
+    const { error } = await supabase.from('checked_words').upsert({
+      user_id: userId,
+      leap_number: leapNumber,
+      word: word ?? '',
+      checked_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,leap_number' })
+    if (error) console.warn('[Vocaleap] checked_word sync失敗:', error.message)
+  } catch (err) { console.warn('[Vocaleap] checked_word sync例外:', err) }
+}
+
+/** checked_word 1件をSupabaseから削除（チェック解除） */
+export async function deleteCheckedWord(userId, leapNumber) {
+  if (!userId) return
+  try {
+    const { error } = await supabase.from('checked_words')
+      .delete()
+      .eq('user_id', userId)
+      .eq('leap_number', leapNumber)
+    if (error) console.warn('[Vocaleap] checked_word delete失敗:', error.message)
+  } catch (err) { console.warn('[Vocaleap] checked_word delete例外:', err) }
+}
+
+/** ログイン時：checked_words双方向マージ */
+export async function mergeCheckedWords(userId, db) {
+  if (!userId) return
+  try {
+    const { data: remote, error } = await supabase.from('checked_words').select('*').eq('user_id', userId)
+    if (error || !remote) return
+
+    const local = await db.checked_words.toArray()
+    const localMap = new Map(local.map(r => [r.leapNumber, r]))
+    const remoteLeaps = new Set(remote.map(r => r.leap_number))
+
+    // remote → local
+    for (const rc of remote) {
+      if (!localMap.has(rc.leap_number)) {
+        await db.checked_words.add({
+          leapNumber: rc.leap_number,
+          word: rc.word ?? '',
+          checkedAt: rc.checked_at ? new Date(rc.checked_at) : new Date(),
+        }).catch(() => {})
+      }
+    }
+
+    // local → remote（サーバーにないものをupsert）
+    for (const lc of local) {
+      if (!remoteLeaps.has(lc.leapNumber)) {
+        await syncCheckedWord(userId, lc.leapNumber, lc.word)
+      }
+    }
+  } catch (err) { console.warn('[Vocaleap] mergeCheckedWords例外:', err) }
+}

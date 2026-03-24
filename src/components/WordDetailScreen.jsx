@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import { findRoots } from '../utils/findRoots'
 import { speak } from '../utils/speak'
+import { syncCheckedWord, deleteCheckedWord } from '../utils/supabaseSync'
+import { supabase } from '../lib/supabase'
 import WordCard from './WordCard'
 import NumberQuizScreen from './NumberQuizScreen'
 
@@ -32,6 +34,7 @@ export default function WordDetailScreen({ word, onBack, sessionWords = null, in
   const [familyData, setFamilyData] = useState(null)
   const [familyWords, setFamilyWords] = useState([])
   const [capturedEntry, setCapturedEntry] = useState(null)
+  const [isChecked, setIsChecked] = useState(false)
 
   // 例文
   const [examples, setExamples] = useState([])
@@ -108,6 +111,37 @@ export default function WordDetailScreen({ word, onBack, sessionWords = null, in
       .then(c => setCapturedEntry(c ?? null))
       .catch(() => {})
   }, [currentWord?.leapNumber])
+
+  // チェック状態をIndexedDBからロード
+  useEffect(() => {
+    setIsChecked(false)
+    if (!currentWord?.leapNumber) return
+    db.checked_words.where('leapNumber').equals(currentWord.leapNumber).first()
+      .then(c => setIsChecked(!!c))
+      .catch(() => {})
+  }, [currentWord?.leapNumber])
+
+  async function handleToggleCheck() {
+    if (!currentWord?.leapNumber) return
+    const newState = !isChecked
+    setIsChecked(newState)
+    if (newState) {
+      await db.checked_words.add({
+        leapNumber: currentWord.leapNumber,
+        word: currentWord.word ?? '',
+        checkedAt: new Date(),
+      }).catch(() => {})
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user?.id) syncCheckedWord(session.user.id, currentWord.leapNumber, currentWord.word)
+      })
+    } else {
+      const existing = await db.checked_words.where('leapNumber').equals(currentWord.leapNumber).first().catch(() => null)
+      if (existing) await db.checked_words.delete(existing.id).catch(() => {})
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user?.id) deleteCheckedWord(session.user.id, currentWord.leapNumber)
+      })
+    }
+  }
 
   useEffect(() => {
     setExamples([])
@@ -227,6 +261,18 @@ export default function WordDetailScreen({ word, onBack, sessionWords = null, in
                 🎯 捕獲済
               </button>
             )}
+            {/* チェックボタン */}
+            <button
+              onClick={handleToggleCheck}
+              className={`text-xs rounded px-1.5 py-0.5 font-bold border transition-colors active:scale-95 ${
+                isChecked
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  : 'bg-slate-700/50 text-slate-500 border-slate-600/40 hover:text-slate-300'
+              }`}
+              title={isChecked ? 'チェックを外す' : 'チェックする'}
+            >
+              {isChecked ? '☑ チェック済' : '☐ チェック'}
+            </button>
           </div>
           {capturedEntry && (
             <p className="text-xs text-cyan-500/70 mb-2">{capturedEntry.memo}</p>

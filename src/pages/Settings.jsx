@@ -5,6 +5,7 @@ import { importCSVFromUrl } from '../utils/importFromCSV'
 import { loadExamples } from '../utils/loadExamples'
 import { useAuth } from '../hooks/useAuth'
 import { useAllowedUser } from '../contexts/AllowedUserContext'
+import { supabase } from '../lib/supabase'
 
 const WORD_LISTS = [
   { id: 'new', label: 'LEAP改訂版（2300語）', file: '/data/leap_words.csv' },
@@ -45,6 +46,22 @@ export default function Settings() {
   const navigate = useNavigate()
   const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth()
   const allowedUser = useAllowedUser()
+
+  // ランキング表示名（マウント時にSupabaseから最新を取得してリアルタイム反映）
+  const [localNickname, setLocalNickname] = useState(allowedUser?.nickname ?? '')
+  useEffect(() => {
+    setLocalNickname(allowedUser?.nickname ?? '')
+  }, [allowedUser?.nickname])
+  useEffect(() => {
+    if (!user?.email) return
+    supabase
+      .from('allowed_users')
+      .select('nickname')
+      .eq('email', user.email)
+      .single()
+      .then(({ data }) => { if (data?.nickname) setLocalNickname(data.nickname) })
+      .catch(() => {})
+  }, [user?.email])
 
   // タイマー設定
   const [challengeTimer, setChallengeTimer] = useState(getStoredTimer)
@@ -422,7 +439,7 @@ export default function Settings() {
               {allowedUser && (
                 <div className="p-4 bg-slate-800 rounded-xl flex flex-col gap-1">
                   <p className="text-xs text-slate-400 font-semibold">ランキング表示名</p>
-                  <p className="text-white font-bold">{allowedUser.nickname}</p>
+                  <p className="text-white font-bold">{localNickname || allowedUser.nickname}</p>
                   <p className="text-xs text-slate-600">名前の変更は先生にご連絡ください</p>
                 </div>
               )}

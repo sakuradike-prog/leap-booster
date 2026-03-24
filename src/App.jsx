@@ -25,7 +25,7 @@ import { loadRoots } from './utils/loadRoots'
 import { loadExamples } from './utils/loadExamples'
 import { supabase } from './lib/supabase'
 import { migrateLocalDataToServer } from './utils/migrateToServer'
-import { mergeCapturedWords, mergeCards, mergeChallengeHistory, mergeWarmupHistory, mergeDailyQuizHistory, syncDisplayName } from './utils/supabaseSync'
+import { mergeCapturedWords, mergeCards, mergeChallengeHistory, mergeWarmupHistory, mergeDailyQuizHistory, mergeCheckedWords, syncDisplayName } from './utils/supabaseSync'
 import { mergeConsecutiveCorrect } from './utils/consecutiveCorrect'
 
 // 歓迎モーダル
@@ -119,6 +119,7 @@ function App() {
       mergeChallengeHistory(uid, db),
       mergeWarmupHistory(uid, db),
       mergeDailyQuizHistory(uid, db),
+      mergeCheckedWords(uid, db),
       mergeConsecutiveCorrect(uid),
     ]).then(() => {
       window.dispatchEvent(new CustomEvent('vocaleap:synced'))

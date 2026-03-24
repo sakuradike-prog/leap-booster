@@ -172,10 +172,6 @@ export default function Rankings() {
               </div>
             )}
 
-            {/* フッター注記 */}
-            <p className="text-center text-slate-600 text-xs mt-8">
-              ニックネームは設定画面 → アカウントで変更できます
-            </p>
           </>
         )}
       </div>

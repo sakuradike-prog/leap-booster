@@ -51,3 +51,8 @@ db.version(8).stores({
   // 4択練習完了履歴（ヒートマップ用、セッション開始ではなく完了時に記録）
   dailyQuizHistory: '++id, date',
 })
+
+db.version(9).stores({
+  // チェックした単語（単語解説画面でブックマーク的に使う）
+  checked_words: '++id, leapNumber, checkedAt',
+})
