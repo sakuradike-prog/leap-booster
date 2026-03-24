@@ -105,6 +105,12 @@ export function useUserStats() {
     // dayDiff === 2：ちょうど1日飛んだ → フリーズがあればユーザーに確認
     const oldStreak = current.currentStreak ?? 0
     if (dayDiff === 2 && (current.freezeCount ?? 0) > 0) {
+      // F5リロードによる回避を防ぐため、先に streak:0 を DB・Supabase に確定させる
+      const broken = { ...DEFAULT_STATS, ...current, currentStreak: 0 }
+      await db.userStats.put(broken)
+      setStats(broken)
+      getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, broken) })
+      // モーダルで「フリーズを使って復元するか」を問う
       setFreezeNotice({ type: 'can_use_freeze', oldStreak, freezeCount: current.freezeCount })
       return { canUseFreeze: true, oldStreak }
     }
@@ -119,15 +125,18 @@ export function useUserStats() {
     return { streakBroken: true, oldStreak }
   }, [])
 
-  // フリーズを使ってストリーク維持（モーダルで「使う」を選んだとき）
-  const applyFreeze = useCallback(async () => {
+  // フリーズを使ってストリーク「復元」（checkStreak で既に streak:0 が確定済みのため復元処理）
+  const applyFreeze = useCallback(async (oldStreak) => {
     const current = (await db.userStats.get(1)) ?? DEFAULT_STATS
     const today = new Date()
     const yesterday = new Date(today)
     yesterday.setDate(today.getDate() - 1)
+    const restored = oldStreak ?? (current.currentStreak ?? 0)
     const updated = {
       ...DEFAULT_STATS,
       ...current,
+      currentStreak: restored,
+      longestStreak: Math.max(current.longestStreak ?? 0, restored),
       freezeCount: Math.max(0, (current.freezeCount ?? 0) - 1),
       lastStudyDate: yesterday,
     }
@@ -137,15 +146,10 @@ export function useUserStats() {
     getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
   }, [])
 
-  // フリーズを使わずストリークリセット（モーダルで「使わない」を選んだとき）
-  const declineFreeze = useCallback(async () => {
-    const current = (await db.userStats.get(1)) ?? DEFAULT_STATS
-    const oldStreak = current.currentStreak ?? 0
-    const updated = { ...DEFAULT_STATS, ...current, currentStreak: 0 }
-    await db.userStats.put(updated)
-    setStats(updated)
-    setFreezeNotice({ type: 'streak_broken', oldStreak })
-    getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
+  // フリーズを使わずにリセット確定（streak は checkStreak で既に 0 確定済み）
+  const declineFreeze = useCallback((oldStreak) => {
+    // DB への再書込み不要（checkStreak で streak:0 は既に確定済み）
+    setFreezeNotice({ type: 'streak_broken', oldStreak: oldStreak ?? 0 })
   }, [])
 
   // 学習日を記録してストリークを更新する

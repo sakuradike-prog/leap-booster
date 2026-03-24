@@ -203,26 +203,26 @@ export default function Home() {
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-6">
           <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-sm border border-slate-600 shadow-2xl">
             <div className="text-5xl text-center mb-3">❄️</div>
-            <h2 className="text-lg font-black text-center text-white mb-2">ストリークの危機！</h2>
+            <h2 className="text-lg font-black text-center text-white mb-2">ストリークが途切れました</h2>
             <p className="text-slate-300 text-sm text-center mb-1">
-              {freezeNotice.oldStreak}日連続が途切れそうです。
+              {freezeNotice.oldStreak}日連続が途切れました。
             </p>
             <p className="text-slate-400 text-sm text-center mb-5">
-              フリーズを使って守りますか？<br/>
+              フリーズを使って復元しますか？<br/>
               <span className="text-blue-400 font-bold">残り {freezeNotice.freezeCount} 個</span>
             </p>
             <div className="flex flex-col gap-3">
               <button
-                onClick={applyFreeze}
+                onClick={() => applyFreeze(freezeNotice.oldStreak)}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-white transition-colors"
               >
-                ❄️ フリーズを使って守る
+                ❄️ フリーズを使って復元する
               </button>
               <button
-                onClick={declineFreeze}
+                onClick={() => declineFreeze(freezeNotice.oldStreak)}
                 className="w-full py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold text-slate-300 transition-colors"
               >
-                使わずにリセット
+                そのままリセット
               </button>
             </div>
           </div>
