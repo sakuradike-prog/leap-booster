@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
+import { supabase } from '../lib/supabase'
 import WordDetailScreen from '../components/WordDetailScreen'
 
 // 日付を "YYYY/M/D" 形式に
@@ -62,47 +63,97 @@ export default function Stats() {
 
   useEffect(() => {
     async function load() {
-      // 30問チャレンジ履歴（新しい順に最大20件）
-      const history = await db.challengeHistory
-        .orderBy('date').reverse().limit(20).toArray()
-      setChallengeHistory(history)
+      const { data: { session } } = await supabase.auth.getSession()
+      const uid = session?.user?.id
 
-      // 苦手な単語トップ10 + 総学習回数ランキング
-      const allCards = await db.cards.toArray()
+      if (uid) {
+        // ── ログイン中：Supabaseから直接読む（全デバイスで同じデータを表示） ──
 
-      // 苦手単語
-      const topCards = allCards
-        .filter(c => (c.incorrectCount ?? 0) > 0)
-        .sort((a, b) => (b.incorrectCount ?? 0) - (a.incorrectCount ?? 0))
-        .slice(0, 10)
-      const wordIds = topCards.map(c => c.wordId)
-      if (wordIds.length > 0) {
-        const words = await db.words.where('id').anyOf(wordIds).toArray()
-        const wordMap = Object.fromEntries(words.map(w => [w.id, w]))
-        const ranked = topCards
-          .filter(c => (c.incorrectCount ?? 0) > 0 && wordMap[c.wordId])
+        // 30問チャレンジ履歴（新しい順20件）
+        const { data: chData } = await supabase
+          .from('challenge_history')
+          .select('*')
+          .eq('user_id', uid)
+          .order('date', { ascending: false })
+          .limit(20)
+        setChallengeHistory((chData ?? []).map(rc => ({
+          id:        rc.id,
+          date:      new Date(rc.date + 'T00:00:00'), // ローカル日付として解釈
+          result:    rc.score      ?? 0,
+          cleared:   rc.cleared    ?? false,
+          totalTime: rc.total_time ?? null,
+          parts:     rc.parts      ?? null,
+        })))
+
+        // cardsデータ
+        const { data: cardsData } = await supabase
+          .from('cards')
+          .select('leap_number, study_count, incorrect_count')
+          .eq('user_id', uid)
+
+        // leapNumberでローカルの単語情報を引く
+        const leapNums = (cardsData ?? []).map(c => c.leap_number)
+        const words = leapNums.length > 0
+          ? await db.words.where('leapNumber').anyOf(leapNums).toArray()
+          : []
+        const wordByLeap = Object.fromEntries(words.map(w => [w.leapNumber, w]))
+
+        // 苦手な単語トップ10
+        const weakCards = (cardsData ?? [])
+          .filter(c => (c.incorrect_count ?? 0) > 0 && wordByLeap[c.leap_number])
+          .sort((a, b) => (b.incorrect_count ?? 0) - (a.incorrect_count ?? 0))
           .slice(0, 10)
-          .map(c => ({ card: c, word: wordMap[c.wordId] }))
-        setWeakWords(ranked)
-      } else {
-        setWeakWords([])
-      }
+          .map(c => ({
+            card: { incorrectCount: c.incorrect_count, studyCount: c.study_count },
+            word: wordByLeap[c.leap_number],
+          }))
+        setWeakWords(weakCards)
 
-      // 総学習回数ランキング トップ10
-      const topStudy = allCards
-        .filter(c => (c.studyCount ?? 0) > 0)
-        .sort((a, b) => (b.studyCount ?? 0) - (a.studyCount ?? 0))
-        .slice(0, 10)
-      if (topStudy.length > 0) {
-        const studyWordIds = topStudy.map(c => c.wordId)
-        const studyWords = await db.words.where('id').anyOf(studyWordIds).toArray()
-        const studyWordMap = Object.fromEntries(studyWords.map(w => [w.id, w]))
-        setStudyRanking(
-          topStudy.filter(c => studyWordMap[c.wordId])
-            .map(c => ({ card: c, word: studyWordMap[c.wordId] }))
-        )
+        // 総学習回数ランキング トップ10
+        const studyCards = (cardsData ?? [])
+          .filter(c => (c.study_count ?? 0) > 0 && wordByLeap[c.leap_number])
+          .sort((a, b) => (b.study_count ?? 0) - (a.study_count ?? 0))
+          .slice(0, 10)
+          .map(c => ({
+            card: { incorrectCount: c.incorrect_count, studyCount: c.study_count },
+            word: wordByLeap[c.leap_number],
+          }))
+        setStudyRanking(studyCards)
+
       } else {
-        setStudyRanking([])
+        // ── 未ログイン：IndexedDBから読む ──
+
+        const history = await db.challengeHistory
+          .orderBy('date').reverse().limit(20).toArray()
+        setChallengeHistory(history)
+
+        const allCards = await db.cards.toArray()
+
+        const topCards = allCards
+          .filter(c => (c.incorrectCount ?? 0) > 0)
+          .sort((a, b) => (b.incorrectCount ?? 0) - (a.incorrectCount ?? 0))
+          .slice(0, 10)
+        if (topCards.length > 0) {
+          const wordIds = topCards.map(c => c.wordId)
+          const words = await db.words.where('id').anyOf(wordIds).toArray()
+          const wordMap = Object.fromEntries(words.map(w => [w.id, w]))
+          setWeakWords(topCards.filter(c => wordMap[c.wordId]).map(c => ({ card: c, word: wordMap[c.wordId] })))
+        } else {
+          setWeakWords([])
+        }
+
+        const topStudy = allCards
+          .filter(c => (c.studyCount ?? 0) > 0)
+          .sort((a, b) => (b.studyCount ?? 0) - (a.studyCount ?? 0))
+          .slice(0, 10)
+        if (topStudy.length > 0) {
+          const studyWordIds = topStudy.map(c => c.wordId)
+          const studyWords = await db.words.where('id').anyOf(studyWordIds).toArray()
+          const studyWordMap = Object.fromEntries(studyWords.map(w => [w.id, w]))
+          setStudyRanking(topStudy.filter(c => studyWordMap[c.wordId]).map(c => ({ card: c, word: studyWordMap[c.wordId] })))
+        } else {
+          setStudyRanking([])
+        }
       }
 
       setLoading(false)
