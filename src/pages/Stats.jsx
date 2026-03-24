@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
-import { useUserStats } from '../hooks/useUserStats'
-import StreakBadge from '../components/StreakBadge'
-import PointDisplay from '../components/PointDisplay'
 import WordDetailScreen from '../components/WordDetailScreen'
 
 // ---- バッジ定義 ----
@@ -77,10 +74,8 @@ function dayKey(date) {
 
 export default function Stats() {
   const navigate = useNavigate()
-  const { stats, loading: statsLoading } = useUserStats()
 
   const [challengeHistory, setChallengeHistory] = useState([])
-  const [weekActivity, setWeekActivity]         = useState([])
   const [weakWords, setWeakWords]               = useState([])
   const [studyRanking, setStudyRanking]         = useState([])
   const [badgeWords, setBadgeWords]             = useState([])
@@ -108,47 +103,6 @@ export default function Stats() {
       const history = await db.challengeHistory
         .orderBy('date').reverse().limit(20).toArray()
       setChallengeHistory(history)
-
-      // 直近7日のアクティビティ
-      const today = new Date()
-      const days = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(today)
-        d.setDate(today.getDate() - (6 - i))
-        return d
-      })
-
-      const since = new Date(days[0])
-      since.setHours(0, 0, 0, 0)
-
-      const sinceTime = since.getTime()
-      const [allChLogs, allDqLogs, allWuLogs, allCaptures] = await Promise.all([
-        db.challengeHistory.toArray(),
-        db.dailyQuizHistory.toArray(),
-        db.warmupHistory.toArray(),
-        db.captured_words.toArray(),
-      ])
-      const chLogs  = allChLogs.filter(r => new Date(r.date).getTime() >= sinceTime)
-      const dqLogs  = allDqLogs.filter(r => new Date(r.date).getTime() >= sinceTime)
-      const wuLogs  = allWuLogs.filter(r => new Date(r.date).getTime() >= sinceTime)
-      const capLogs = allCaptures.filter(r => r.capturedAt && new Date(r.capturedAt).getTime() >= sinceTime)
-
-      const practiceKeys  = new Set(dqLogs.map(r => dayKey(r.date)))
-      const challengeKeys = new Set(chLogs.map(r => dayKey(r.date)))
-      const warmupKeys    = new Set(wuLogs.map(r => dayKey(r.date)))
-      const captureKeys   = new Set(capLogs.map(r => dayKey(r.capturedAt)))
-      const clearKeys     = new Set(chLogs.filter(r => r.cleared).map(r => dayKey(r.date)))
-
-      setWeekActivity(days.map(d => ({
-        date: d,
-        key: dayKey(d),
-        practice:  practiceKeys.has(dayKey(d)),
-        challenge: challengeKeys.has(dayKey(d)),
-        cleared:   clearKeys.has(dayKey(d)),
-        warmup:    warmupKeys.has(dayKey(d)),
-        capture:   captureKeys.has(dayKey(d)),
-        active: practiceKeys.has(dayKey(d)) || challengeKeys.has(dayKey(d)) ||
-                warmupKeys.has(dayKey(d))   || captureKeys.has(dayKey(d)),
-      })))
 
       // 苦手な単語トップ10 + 総学習回数ランキング + バッジ獲得単語リスト
       const allCards = await db.cards.toArray()
@@ -203,8 +157,6 @@ export default function Stats() {
     load()
   }, [])
 
-  const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
-
   if (wordContext) {
     return (
       <WordDetailScreen
@@ -226,49 +178,10 @@ export default function Stats() {
       </div>
       <div className="max-w-[600px] mx-auto px-4 py-6">
 
-        {/* ストリーク・ポイント */}
-        {!statsLoading && (
-          <div className="flex justify-around mb-8 p-5 bg-slate-800 rounded-2xl">
-            <StreakBadge streak={stats.currentStreak} freezeCount={stats.freezeCount ?? 0} />
-            <div className="w-px bg-slate-700" />
-            <PointDisplay points={stats.totalPoints} clearCount={stats.challengeClearCount} />
-          </div>
-        )}
-
         {loading ? (
           <p className="text-slate-600 text-center py-10">読み込み中…</p>
         ) : (
           <>
-            {/* 称号・バッジ：運用開始後に実装予定 */}
-
-            {/* 直近7日のアクティビティ */}
-            <section className="mb-8">
-              <h2 className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-3">直近7日間</h2>
-              <div className="flex gap-1.5 justify-between">
-                {weekActivity.map(({ date, active, practice, challenge, cleared, warmup, capture }) => (
-                  <div key={dayKey(date)} className="flex flex-col items-center gap-1 flex-1">
-                    <div className={`w-full rounded-lg p-1.5 transition-colors ${active ? 'bg-slate-700' : 'bg-slate-800/60'}`}>
-                      <div className="grid grid-cols-2 gap-0.5">
-                        <span className={`text-center text-xs leading-tight transition-opacity ${practice  ? 'opacity-100' : 'opacity-15'}`} title="4択練習">⚡</span>
-                        <span className={`text-center text-xs leading-tight transition-opacity ${challenge ? (cleared ? 'opacity-100' : 'opacity-70') : 'opacity-15'}`} title="30問チャレンジ">🔥</span>
-                        <span className={`text-center text-xs leading-tight transition-opacity ${warmup   ? 'opacity-100' : 'opacity-15'}`} title="瞬間英作文">✏️</span>
-                        <span className={`text-center text-xs leading-tight transition-opacity ${capture  ? 'opacity-100' : 'opacity-15'}`} title="単語捕獲">📷</span>
-                      </div>
-                    </div>
-                    <span className={`text-xs ${active ? 'text-slate-300' : 'text-slate-600'}`}>
-                      {DAY_LABELS[date.getDay()]}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-xs text-slate-500">
-                <span>⚡ 4択練習</span>
-                <span>🔥 30問チャレンジ</span>
-                <span>✏️ 瞬間英作文</span>
-                <span>📷 単語捕獲</span>
-              </div>
-            </section>
-
             {/* 苦手な単語トップ10 */}
             <section className="mb-8">
               <h2 className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-3">苦手な単語トップ10</h2>
