@@ -261,27 +261,32 @@ export default function WordDetailScreen({ word, onBack, sessionWords = null, in
                 🎯 捕獲済
               </button>
             )}
-            {/* チェックボタン */}
-            <button
-              onClick={handleToggleCheck}
-              className={`text-xs rounded px-1.5 py-0.5 font-bold border transition-colors active:scale-95 ${
-                isChecked
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                  : 'bg-slate-700/50 text-slate-500 border-slate-600/40 hover:text-slate-300'
-              }`}
-              title={isChecked ? 'チェックを外す' : 'チェックする'}
-            >
-              {isChecked ? '☑ チェック済' : '☐ チェック'}
-            </button>
           </div>
           {capturedEntry && (
             <p className="text-xs text-cyan-500/70 mb-2">{capturedEntry.memo}</p>
           )}
-          <div className="flex justify-center mb-3">
+          <div className="flex items-center justify-center gap-4 mb-3">
             <WordCard
               word={currentWord}
               textClassName="text-5xl font-black tracking-tight"
             />
+            {/* チェックボタン（大型） */}
+            <button
+              onClick={handleToggleCheck}
+              className={`w-14 h-14 rounded-full flex-shrink-0 flex items-center justify-center transition-all duration-150 active:scale-90 ${
+                isChecked
+                  ? 'bg-amber-400 shadow-[0_0_18px_4px_rgba(251,191,36,0.55)]'
+                  : 'bg-slate-800 border-2 border-slate-600 hover:border-slate-400'
+              }`}
+              title={isChecked ? 'チェックを外す' : 'チェックする'}
+            >
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
+                stroke={isChecked ? 'white' : '#475569'}
+                strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
           </div>
           {currentWord.meaning && (
             <p
