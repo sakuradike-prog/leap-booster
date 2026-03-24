@@ -36,6 +36,8 @@ export default function HeatmapPage() {
       setLoading(false)
     }
     load()
+    window.addEventListener('vocaleap:synced', load)
+    return () => window.removeEventListener('vocaleap:synced', load)
   }, [])
 
   if (selectedWord) {

@@ -4,6 +4,8 @@ import { db } from '../db/database'
 import { useUserStats } from '../hooks/useUserStats'
 import StreakToast from '../components/StreakToast'
 import { playCaptureSound } from '../utils/celebrationSounds'
+import { syncCapturedWord } from '../utils/supabaseSync'
+import { supabase } from '../lib/supabase'
 
 /** Canvas 放射状パーティクルバースト */
 function CaptureCanvas() {
@@ -136,6 +138,17 @@ export default function CapturePage() {
         firstCapturedAt: new Date(),
       })
     }
+    // Supabase sync (fire-and-forget)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.id) {
+        syncCapturedWord(session.user.id, {
+          leapNumber: foundWord.leapNumber,
+          word: foundWord.word,
+          memo: finalMemo,
+          capturedAt: new Date(),
+        })
+      }
+    })
     playCaptureSound()
     const result = await recordStudy()
     if (result.streakUpdated) setStreakToast(result.currentStreak)

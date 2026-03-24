@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUserStats } from '../hooks/useUserStats'
 import { useAuth } from '../hooks/useAuth'
+import { useAllowedUser } from '../contexts/AllowedUserContext'
 import { db } from '../db/database'
 import { getConsecutiveCorrect } from '../utils/consecutiveCorrect'
+import { supabase } from '../lib/supabase'
 
-const TEACHER_EMAIL = 'suyama.kennichi@nihon-u.ac.jp'
+const MESSAGES_LAST_READ_KEY = 'vocaleap_messages_last_read'
 
 // ---- SVG アイコン（Cモノグラムスタイル）----
 
@@ -101,15 +103,17 @@ export default function Home() {
   const navigate = useNavigate()
   const { stats, loading, freezeNotice, clearFreezeNotice, checkStreak, applyFreeze, declineFreeze } = useUserStats()
   const { user } = useAuth()
-  const isTeacher = user?.email === TEACHER_EMAIL
+  const allowedUser = useAllowedUser()
+  const isTeacher = allowedUser?.role === 'teacher'
   const [totalStudyCount, setTotalStudyCount] = useState(0)
   const [consecutiveCorrect, setConsecutiveCorrect] = useState(0)
   const [notice, setNotice] = useState(null)
+  const [unreadCount, setUnreadCount] = useState(0)
 
-  // 起動時にストリーク状態チェック
+  // 起動時にストリーク状態チェック（Supabase同期完了後に実行）
   useEffect(() => {
-    checkStreak()
-  }, [checkStreak])
+    if (!loading) checkStreak()
+  }, [loading, checkStreak])
 
   // トースト表示（15秒）
   useEffect(() => {
@@ -133,16 +137,44 @@ export default function Home() {
     return () => clearTimeout(timer)
   }, [freezeNotice, clearFreezeNotice])
 
-  // 累計学習単語数
+  // 学習履歴の総件数（cards.lastReviewed あり ＋ captured_words、重複カウント）
+  async function loadStudyCount() {
+    try {
+      const [cardsCount, capturedKeys] = await Promise.all([
+        db.cards.filter(c => !!c.lastReviewed).count(),
+        db.captured_words.orderBy('leapNumber').uniqueKeys(),
+      ])
+      setTotalStudyCount(cardsCount + capturedKeys.length)
+    } catch {}
+  }
+
   useEffect(() => {
-    db.cards.toArray()
-      .then(cards => {
-        const total = cards.reduce((sum, c) => sum + (c.studyCount ?? 0), 0)
-        setTotalStudyCount(total)
-        setConsecutiveCorrect(getConsecutiveCorrect())
-      })
-      .catch(() => {})
+    loadStudyCount()
+    setConsecutiveCorrect(getConsecutiveCorrect())
   }, [])
+
+  // 同期後に連続正解カウントと単語数を更新
+  useEffect(() => {
+    const onSynced = () => {
+      setConsecutiveCorrect(getConsecutiveCorrect())
+      loadStudyCount()
+    }
+    window.addEventListener('vocaleap:synced', onSynced)
+    return () => window.removeEventListener('vocaleap:synced', onSynced)
+  }, [])
+
+  // 未読メッセージ数
+  useEffect(() => {
+    if (!user) return
+    async function fetchUnread() {
+      const lastRead = localStorage.getItem(MESSAGES_LAST_READ_KEY)
+      let query = supabase.from('messages').select('*', { count: 'exact', head: true })
+      if (lastRead) query = query.gt('created_at', lastRead)
+      const { count } = await query
+      setUnreadCount(count ?? 0)
+    }
+    fetchUnread()
+  }, [user])
 
   const streak      = stats?.currentStreak ?? 0
   const points      = stats?.totalPoints ?? 0
@@ -214,16 +246,39 @@ export default function Home() {
         {/* タイトルコピー */}
         <div className="relative z-10">
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-            <div style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: 48,
-              color: '#111',
-              lineHeight: .82,
-              letterSpacing: '.02em',
-            }}>
-              英単語
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              {unreadCount > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: -6,
+                  right: -8,
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontSize: 9,
+                  fontWeight: 700,
+                  borderRadius: 99,
+                  padding: '1px 5px',
+                  lineHeight: 1.4,
+                  whiteSpace: 'nowrap',
+                }}>
+                  新着{unreadCount}件
+                </div>
+              )}
+              <div
+                onClick={() => navigate('/messages')}
+                style={{
+                  fontFamily: "'Bebas Neue', sans-serif",
+                  fontSize: 48,
+                  color: '#111',
+                  lineHeight: .82,
+                  letterSpacing: '.02em',
+                  cursor: 'pointer',
+                }}
+              >
+                英単語
+              </div>
             </div>
-            {consecutiveCorrect >= 10 && (
+            {consecutiveCorrect >= 2 && (
               <div style={{
                 marginBottom: 4,
                 background: 'linear-gradient(90deg, #f59e0b, #ef4444)',
@@ -288,10 +343,15 @@ export default function Home() {
                     {streak >= 100 ? '🔥🔥🔥🔥' : streak >= 50 ? '🔥🔥🔥' : streak >= 10 ? '🔥🔥' : '🔥'}
                   </span>
                 </div>
-                <span className="tabular-nums leading-tight"
-                  style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: '#fff' }}>
-                  {streak}
-                </span>
+                <div className="flex items-baseline gap-1 leading-tight">
+                  <span className="tabular-nums"
+                    style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: '#fff' }}>
+                    {streak}
+                  </span>
+                  <span style={{ fontSize: 9, fontFamily: "'Fredoka', sans-serif", fontWeight: 600, color: '#aaa' }}>
+                    {streak === 1 ? 'day' : 'days'}
+                  </span>
+                </div>
                 <span style={{ fontSize: 7, color: '#888', letterSpacing: '.08em', fontWeight: 700 }}>STREAK</span>
               </button>
 

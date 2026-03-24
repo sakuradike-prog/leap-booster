@@ -71,21 +71,14 @@ export function useUserStats() {
       const localData = await db.userStats.get(1)
       if (localData) setStats({ ...DEFAULT_STATS, ...localData })
 
-      // ログイン済みならSupabaseと同期
+      // ログイン済みならSupabaseを正とする（サーバーデータを常に優先）
       const userId = await getCurrentUserId()
       if (userId) {
         const remote = await fetchUserStats(userId)
         if (remote) {
-          const remotePts = remote.total_points ?? 0
-          const localPts = localData?.totalPoints ?? 0
-          const remoteLastStudy = remote.last_study_date ? new Date(remote.last_study_date) : null
-          const localLastStudy = localData?.lastStudyDate ? new Date(localData.lastStudyDate) : null
-          const remoteNewer = remoteLastStudy && (!localLastStudy || remoteLastStudy > localLastStudy)
-          if (remotePts > localPts || remoteNewer) {
-            const merged = fromRemote(remote)
-            await db.userStats.put(merged)
-            setStats({ ...DEFAULT_STATS, ...merged })
-          }
+          const merged = fromRemote(remote)
+          await db.userStats.put(merged)
+          setStats({ ...DEFAULT_STATS, ...merged })
         }
       }
       setLoading(false)

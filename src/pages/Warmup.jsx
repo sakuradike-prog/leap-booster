@@ -8,6 +8,8 @@ import StreakToast from '../components/StreakToast'
 import SessionCompleteOverlay from '../components/SessionCompleteOverlay'
 import { addStudyLog } from '../utils/studyLog'
 import { startSession, endSession } from '../utils/sessionLog'
+import { syncWarmupHistory } from '../utils/supabaseSync'
+import { supabase } from '../lib/supabase'
 import { sourceBookFilter } from '../utils/bookVersion'
 
 const ALL_PARTS  = ['すべて', 'Part1', 'Part2', 'Part3', 'Part4', 'α']
@@ -668,6 +670,9 @@ export default function Warmup() {
     const result = await recordStudy()
     if (result.streakUpdated) setStreakToast(result.currentStreak)
     db.warmupHistory.add({ date: new Date() }).catch(() => {})
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.id) syncWarmupHistory(session.user.id, new Date())
+    })
     setShowSessionOverlay(true)
     setPhase('summary')
   }

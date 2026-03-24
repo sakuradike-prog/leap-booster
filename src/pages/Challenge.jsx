@@ -14,6 +14,8 @@ import { addStudyLog } from '../utils/studyLog'
 import { startSession, endSession } from '../utils/sessionLog'
 import { incrementConsecutiveCorrect, resetConsecutiveCorrect } from '../utils/consecutiveCorrect'
 import { sourceBookFilter } from '../utils/bookVersion'
+import { syncCard, syncChallengeHistory } from '../utils/supabaseSync'
+import { supabase } from '../lib/supabase'
 
 const PARTS = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const GOAL = 30
@@ -483,15 +485,16 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd, onQuitHome })
   async function handleTimeoutInternal() {
     const existing = await db.cards.where('wordId').equals(word.id).first()
     if (existing) {
-      await db.cards.update(existing.id, {
-        incorrectCount: (existing.incorrectCount ?? 0) + 1,
-        studyCount: (existing.studyCount ?? 0) + 1,
-        lastReviewed: new Date(),
+      const upd = { incorrectCount: (existing.incorrectCount ?? 0) + 1, studyCount: (existing.studyCount ?? 0) + 1, lastReviewed: new Date() }
+      await db.cards.update(existing.id, upd)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user?.id) syncCard(session.user.id, word.leapNumber, word.word, { ...existing, ...upd })
       })
     } else {
-      await db.cards.add({
-        wordId: word.id, lastReviewed: new Date(),
-        correctCount: 0, incorrectCount: 1, studyCount: 1,
+      const newCard = { wordId: word.id, lastReviewed: new Date(), correctCount: 0, incorrectCount: 1, studyCount: 1 }
+      await db.cards.add(newCard)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user?.id) syncCard(session.user.id, word.leapNumber, word.word, newCard)
       })
     }
     resetConsecutiveCorrect()
@@ -551,15 +554,16 @@ function Quiz({ words, timerSecs, onClear, onTimeout, onHonestEnd, onQuitHome })
     if (isCorrect) {
       const existing = await db.cards.where('wordId').equals(word.id).first()
       if (existing) {
-        await db.cards.update(existing.id, {
-          correctCount: (existing.correctCount ?? 0) + 1,
-          studyCount: (existing.studyCount ?? 0) + 1,
-          lastReviewed: new Date(),
+        const upd = { correctCount: (existing.correctCount ?? 0) + 1, studyCount: (existing.studyCount ?? 0) + 1, lastReviewed: new Date() }
+        await db.cards.update(existing.id, upd)
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user?.id) syncCard(session.user.id, word.leapNumber, word.word, { ...existing, ...upd })
         })
       } else {
-        await db.cards.add({
-          wordId: word.id, lastReviewed: new Date(),
-          correctCount: 1, incorrectCount: 0, studyCount: 1,
+        const newCard = { wordId: word.id, lastReviewed: new Date(), correctCount: 1, incorrectCount: 0, studyCount: 1 }
+        await db.cards.add(newCard)
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user?.id) syncCard(session.user.id, word.leapNumber, word.word, newCard)
         })
       }
 
@@ -1244,6 +1248,9 @@ export default function Challenge() {
       result: GOAL,
       cleared: true,
     })
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.id) syncChallengeHistory(session.user.id, { date: new Date(), result: GOAL, cleared: true })
+    })
     setAlreadyDone(true)
     setPhase('clear')
   }
@@ -1269,6 +1276,9 @@ export default function Challenge() {
       result: streak,
       cleared: false,
     })
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.id) syncChallengeHistory(session.user.id, { date: new Date(), result: streak, cleared: false })
+    })
     const studyResult = await recordStudy()
     if (studyResult.streakUpdated) setStreakToast(studyResult.currentStreak)
     setTimeoutWord(word)
@@ -1292,6 +1302,9 @@ export default function Challenge() {
       parts: selectedParts,
       result: streak,
       cleared: false,
+    })
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.id) syncChallengeHistory(session.user.id, { date: new Date(), result: streak, cleared: false })
     })
     const studyResult = await recordStudy()
     if (studyResult.streakUpdated) setStreakToast(studyResult.currentStreak)

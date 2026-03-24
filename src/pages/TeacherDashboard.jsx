@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useAllowedUser } from '../contexts/AllowedUserContext'
 import { fetchRankings } from '../utils/supabaseSync'
-
-const TEACHER_EMAIL = 'suyama.kennichi@nihon-u.ac.jp'
 
 function todayStr() {
   const d = new Date()
@@ -30,11 +29,12 @@ const SORT_OPTIONS = [
 export default function TeacherDashboard() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
+  const allowedUser = useAllowedUser()
   const [students, setStudents] = useState([])
   const [loading, setLoading] = useState(true)
   const [sortKey, setSortKey] = useState('last_study_date')
 
-  const isTeacher = user?.email === TEACHER_EMAIL
+  const isTeacher = allowedUser?.role === 'teacher'
 
   useEffect(() => {
     if (authLoading) return
@@ -71,7 +71,7 @@ export default function TeacherDashboard() {
           <h1 className="text-lg font-bold">📊 先生ダッシュボード</h1>
         </div>
       </div>
-      <div className="max-w-[600px] mx-auto px-4 py-6">
+      <div className="max-w-[600px] mx-auto px-4 py-6 flex flex-col gap-8">
 
         {/* アクセス拒否 */}
         {!authLoading && !user && (
@@ -96,7 +96,7 @@ export default function TeacherDashboard() {
           <>
             {/* サマリー統計 */}
             {!loading && (
-              <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center">
                   <div className="font-black tabular-nums leading-tight"
                     style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: '#fff' }}>
@@ -122,7 +122,7 @@ export default function TeacherDashboard() {
             )}
 
             {/* ソートボタン */}
-            <div className="flex gap-2 mb-4 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               {SORT_OPTIONS.map(s => (
                 <button
                   key={s.key}
@@ -164,15 +164,10 @@ export default function TeacherDashboard() {
                           : 'bg-slate-800/80 border-slate-700/60'
                       }`}
                     >
-                      {/* 番号 */}
                       <div className="w-6 text-center flex-shrink-0">
                         <span className="text-slate-600 text-xs tabular-nums font-bold">{idx + 1}</span>
                       </div>
-
-                      {/* アクティビティ信号 */}
                       <div className="text-base flex-shrink-0">{status.emoji}</div>
-
-                      {/* 名前・最終学習 */}
                       <div className="flex-1 min-w-0">
                         <div className={`font-bold text-sm truncate ${isMe ? 'text-blue-300' : 'text-white'}`}>
                           {s.display_name || '名無し'}
@@ -182,8 +177,6 @@ export default function TeacherDashboard() {
                           {status.label}
                         </div>
                       </div>
-
-                      {/* ポイント / ストリーク / チャレンジ */}
                       <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="text-right">
                           <div className="font-black tabular-nums text-sm"
@@ -214,7 +207,7 @@ export default function TeacherDashboard() {
             )}
 
             {/* 凡例 */}
-            <div className="mt-6 p-3 bg-slate-800/50 rounded-xl">
+            <div className="p-3 bg-slate-800/50 rounded-xl">
               <p className="text-xs text-slate-500 font-bold mb-1">アクティビティ表示</p>
               <div className="flex gap-4 text-xs text-slate-400">
                 <span>🟢 今日学習した</span>
@@ -223,6 +216,14 @@ export default function TeacherDashboard() {
                 <span>⚫ 未学習</span>
               </div>
             </div>
+
+            {/* ユーザー管理ボタン */}
+            <button
+              onClick={() => navigate('/users')}
+              className="w-full py-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl font-bold text-slate-300 transition-colors flex items-center justify-center gap-2"
+            >
+              👥 ユーザー管理
+            </button>
           </>
         )}
       </div>

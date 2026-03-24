@@ -14,6 +14,8 @@ import { addStudyLog } from '../utils/studyLog'
 import { startSession, endSession } from '../utils/sessionLog'
 import { incrementConsecutiveCorrect, resetConsecutiveCorrect } from '../utils/consecutiveCorrect'
 import { sourceBookFilter } from '../utils/bookVersion'
+import { syncCard, syncDailyQuizHistory } from '../utils/supabaseSync'
+import { supabase } from '../lib/supabase'
 
 
 const BASE_PARTS = ['Part1', 'Part2', 'Part3', 'Part4']
@@ -154,13 +156,20 @@ async function saveStudyCountBatch(words, incorrectIds = new Set()) {
           updates.incorrectCount = (existing.incorrectCount ?? 0) + 1
         }
         await db.cards.update(existing.id, updates)
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user?.id) syncCard(session.user.id, word.leapNumber, word.word, { ...existing, ...updates })
+        })
       } else {
-        await db.cards.add({
+        const newCard = {
           wordId: word.id,
           lastReviewed: new Date(),
           correctCount: 0,
           incorrectCount: incorrectIds.has(word.id) ? 1 : 0,
           studyCount: 1,
+        }
+        await db.cards.add(newCard)
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user?.id) syncCard(session.user.id, word.leapNumber, word.word, newCard)
         })
       }
     } catch { /* ignore */ }
@@ -504,6 +513,9 @@ export default function DailyQuiz() {
     const result = await recordStudy()
     if (result.streakUpdated) setStreakToast(result.currentStreak)
     db.dailyQuizHistory.add({ date: new Date() }).catch(() => {})
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.id) syncDailyQuizHistory(session.user.id, new Date())
+    })
     setShowSessionOverlay(true)
     setPhase('result')
   }

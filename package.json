@@ -1,7 +1,7 @@
 {
   "name": "vocaleap",
   "private": true,
-  "version": "1.5.20",
+  "version": "1.5.32",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,7 +14,8 @@
     "dexie": "^4.3.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.13.1"
+    "react-router-dom": "^7.13.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

@@ -91,6 +91,8 @@ export default function StudyHistory() {
       setLoading(false)
     }
     load()
+    window.addEventListener('vocaleap:synced', load)
+    return () => window.removeEventListener('vocaleap:synced', load)
   }, [])
 
   // 単語詳細から戻ったときにスクロール位置を復元
