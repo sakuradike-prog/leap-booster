@@ -44,8 +44,6 @@ function Toggle({ enabled, onChange }) {
 export default function Settings() {
   const navigate = useNavigate()
   const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth()
-  const [showResetConfirm, setShowResetConfirm] = useState(false)
-  const [resetDone, setResetDone] = useState(false)
 
   // ニックネーム
   const [displayName, setDisplayName] = useState('')
@@ -191,24 +189,6 @@ export default function Settings() {
     } finally {
       setAlphaAdding(false)
     }
-  }
-
-  async function handleReset() {
-    await db.transaction('rw', [db.words, db.cards, db.challengeHistory, db.warmupHistory, db.userStats, db.warmupSentences, db.study_logs, db.session_logs, db.captured_words], async () => {
-      await Promise.all([
-        db.words.clear(),
-        db.cards.clear(),
-        db.challengeHistory.clear(),
-        db.warmupHistory.clear(),
-        db.userStats.clear(),
-        db.warmupSentences.clear(),
-        db.study_logs.clear(),
-        db.session_logs.clear(),
-        db.captured_words.clear(),
-      ])
-    })
-    setShowResetConfirm(false)
-    setResetDone(true)
   }
 
   function requestListSwitch(list) {
@@ -512,48 +492,6 @@ export default function Settings() {
           )}
         </section>
 
-        {/* データリセット */}
-        <section>
-          <h2 className="text-lg font-bold text-slate-200 mb-4 pb-2 border-b border-slate-700">
-            データリセット
-          </h2>
-
-          {resetDone && (
-            <div className="mb-4 p-4 bg-green-900/50 border border-green-600 rounded-xl text-green-300">
-              ✅ 全データをリセットしました。
-            </div>
-          )}
-
-          {!showResetConfirm ? (
-            <button
-              onClick={() => { setShowResetConfirm(true); setResetDone(false) }}
-              className="w-full py-4 text-lg font-bold bg-red-900/50 hover:bg-red-800 border border-red-700 rounded-xl transition-colors text-red-300"
-            >
-              🗑️ 全データを削除する
-            </button>
-          ) : (
-            <div className="p-4 bg-red-900/30 border border-red-700 rounded-xl">
-              <p className="text-red-300 font-bold mb-4">
-                本当に全データを削除しますか？<br />
-                <span className="font-normal text-sm">単語・学習記録・ポイントがすべて消えます。</span>
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleReset}
-                  className="flex-1 py-3 font-bold bg-red-700 hover:bg-red-600 rounded-xl transition-colors"
-                >
-                  削除する
-                </button>
-                <button
-                  onClick={() => setShowResetConfirm(false)}
-                  className="flex-1 py-3 font-bold bg-slate-700 hover:bg-slate-600 rounded-xl transition-colors"
-                >
-                  キャンセル
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
       </div>
     </div>
   )

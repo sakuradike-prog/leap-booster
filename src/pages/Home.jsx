@@ -99,7 +99,7 @@ function MenuButton({ onClick, bgColor, textDark = false, icon, label, sub }) {
 // ---- メイン ----
 export default function Home() {
   const navigate = useNavigate()
-  const { stats, loading, freezeNotice, clearFreezeNotice, checkStreak } = useUserStats()
+  const { stats, loading, freezeNotice, clearFreezeNotice, checkStreak, applyFreeze, declineFreeze } = useUserStats()
   const { user } = useAuth()
   const isTeacher = user?.email === TEACHER_EMAIL
   const [totalStudyCount, setTotalStudyCount] = useState(0)
@@ -111,20 +111,25 @@ export default function Home() {
     checkStreak()
   }, [checkStreak])
 
-  // フリーズ通知をトースト表示（4秒後に消える）
+  // トースト表示（15秒）
   useEffect(() => {
     if (!freezeNotice) return
-    if (freezeNotice === 'freeze_used') {
+    const t = freezeNotice.type
+    if (t === 'freeze_used') {
       setNotice({ type: 'ice', text: '❄️ フリーズ発動！ストリークを守りました' })
-    } else if (freezeNotice === 'freeze_earned') {
+    } else if (t === 'freeze_earned') {
       setNotice({ type: 'ice', text: '❄️ フリーズ獲得！ストリーク7日達成ボーナス' })
-    } else if (freezeNotice === 'streak_broken') {
-      setNotice({ type: 'red', text: '🔥 ストリークが途切れました… また今日から始めよう！' })
+    } else if (t === 'streak_broken') {
+      const n = freezeNotice.oldStreak ?? 0
+      setNotice({ type: 'red', text: `🔥 ${n > 0 ? `${n}日連続が途切れました…` : 'ストリークが途切れました…'} また今日から始めよう！` })
+    } else {
+      // can_use_freeze はモーダルで表示
+      return
     }
     const timer = setTimeout(() => {
       setNotice(null)
       clearFreezeNotice()
-    }, 4000)
+    }, 15000)
     return () => clearTimeout(timer)
   }, [freezeNotice, clearFreezeNotice])
 
@@ -158,6 +163,37 @@ export default function Home() {
           }}
         >
           {notice.text}
+        </div>
+      )}
+
+      {/* フリーズ確認モーダル */}
+      {freezeNotice?.type === 'can_use_freeze' && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-6">
+          <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-sm border border-slate-600 shadow-2xl">
+            <div className="text-5xl text-center mb-3">❄️</div>
+            <h2 className="text-lg font-black text-center text-white mb-2">ストリークの危機！</h2>
+            <p className="text-slate-300 text-sm text-center mb-1">
+              {freezeNotice.oldStreak}日連続が途切れそうです。
+            </p>
+            <p className="text-slate-400 text-sm text-center mb-5">
+              フリーズを使って守りますか？<br/>
+              <span className="text-blue-400 font-bold">残り {freezeNotice.freezeCount} 個</span>
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={applyFreeze}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-white transition-colors"
+              >
+                ❄️ フリーズを使って守る
+              </button>
+              <button
+                onClick={declineFreeze}
+                className="w-full py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold text-slate-300 transition-colors"
+              >
+                使わずにリセット
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

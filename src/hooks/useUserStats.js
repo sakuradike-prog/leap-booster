@@ -63,7 +63,7 @@ function calcNewFreeze(current, newStreak) {
 export function useUserStats() {
   const [stats, setStats] = useState(DEFAULT_STATS)
   const [loading, setLoading] = useState(true)
-  // 'freeze_used' | 'freeze_earned' | 'streak_broken' | null
+  // { type: 'freeze_used'|'freeze_earned'|'streak_broken'|'can_use_freeze', oldStreak?, freezeCount? } | null
   const [freezeNotice, setFreezeNotice] = useState(null)
 
   useEffect(() => {
@@ -109,34 +109,50 @@ export function useUserStats() {
     const lastDate  = new Date(last.getFullYear(),  last.getMonth(),  last.getDate())
     const dayDiff = Math.round((todayDate - lastDate) / (1000 * 60 * 60 * 24))
 
-    // dayDiff === 2：ちょうど1日飛んだ → フリーズ発動可能
+    // dayDiff === 2：ちょうど1日飛んだ → フリーズがあればユーザーに確認
+    const oldStreak = current.currentStreak ?? 0
     if (dayDiff === 2 && (current.freezeCount ?? 0) > 0) {
-      // lastStudyDate を昨日に設定することで、今日勉強するとストリーク+1になる
-      const yesterday = new Date(today)
-      yesterday.setDate(today.getDate() - 1)
-      const updated = {
-        ...DEFAULT_STATS,
-        ...current,
-        freezeCount: (current.freezeCount ?? 0) - 1,
-        lastStudyDate: yesterday,
-      }
-      await db.userStats.put(updated)
-      setStats(updated)
-      setFreezeNotice('freeze_used')
-      // Supabase同期（fire-and-forget）
-      getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
-      return { freezeUsed: true }
+      setFreezeNotice({ type: 'can_use_freeze', oldStreak, freezeCount: current.freezeCount })
+      return { canUseFreeze: true, oldStreak }
     }
 
-    // ストリーク途切れ
+    // ストリーク途切れ（フリーズなし or 2日以上空いた）
+    const updated = { ...DEFAULT_STATS, ...current, currentStreak: 0 }
+    await db.userStats.put(updated)
+    setStats(updated)
+    if (oldStreak > 0) setFreezeNotice({ type: 'streak_broken', oldStreak })
+    // Supabase同期（fire-and-forget）
+    getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
+    return { streakBroken: true, oldStreak }
+  }, [])
+
+  // フリーズを使ってストリーク維持（モーダルで「使う」を選んだとき）
+  const applyFreeze = useCallback(async () => {
+    const current = (await db.userStats.get(1)) ?? DEFAULT_STATS
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(today.getDate() - 1)
+    const updated = {
+      ...DEFAULT_STATS,
+      ...current,
+      freezeCount: Math.max(0, (current.freezeCount ?? 0) - 1),
+      lastStudyDate: yesterday,
+    }
+    await db.userStats.put(updated)
+    setStats(updated)
+    setFreezeNotice({ type: 'freeze_used' })
+    getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
+  }, [])
+
+  // フリーズを使わずストリークリセット（モーダルで「使わない」を選んだとき）
+  const declineFreeze = useCallback(async () => {
+    const current = (await db.userStats.get(1)) ?? DEFAULT_STATS
     const oldStreak = current.currentStreak ?? 0
     const updated = { ...DEFAULT_STATS, ...current, currentStreak: 0 }
     await db.userStats.put(updated)
     setStats(updated)
-    if (oldStreak > 0) setFreezeNotice('streak_broken')
-    // Supabase同期（fire-and-forget）
+    setFreezeNotice({ type: 'streak_broken', oldStreak })
     getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
-    return { streakBroken: true, oldStreak }
   }, [])
 
   // 学習日を記録してストリークを更新する
@@ -158,7 +174,7 @@ export function useUserStats() {
     }
     await db.userStats.put(updated)
     setStats(updated)
-    if (freezeEarned) setFreezeNotice('freeze_earned')
+    if (freezeEarned) setFreezeNotice({ type: 'freeze_earned' })
     // Supabase同期（fire-and-forget）
     getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
     return { ...updated, freezeEarned, streakUpdated: !wasAlreadyToday }
@@ -193,7 +209,7 @@ export function useUserStats() {
     }
     await db.userStats.put(updated)
     setStats(updated)
-    if (freezeEarned) setFreezeNotice('freeze_earned')
+    if (freezeEarned) setFreezeNotice({ type: 'freeze_earned' })
     // Supabase同期（fire-and-forget）
     getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
     return { ...updated, freezeEarned, streakUpdated: !wasAlreadyToday }
@@ -220,7 +236,7 @@ export function useUserStats() {
     }
     await db.userStats.put(updated)
     setStats(updated)
-    if (freezeEarned) setFreezeNotice('freeze_earned')
+    if (freezeEarned) setFreezeNotice({ type: 'freeze_earned' })
     // Supabase同期（fire-and-forget）
     getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
     return { ...updated, freezeEarned, streakUpdated: !wasAlreadyToday }
@@ -256,6 +272,8 @@ export function useUserStats() {
     freezeNotice,
     clearFreezeNotice,
     checkStreak,
+    applyFreeze,
+    declineFreeze,
     recordStudy,
     recordChallengeClear,
     recordDailyQuiz,
