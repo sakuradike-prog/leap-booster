@@ -84,6 +84,8 @@ export default function Stats() {
           .slice(0, 10)
           .map(c => ({ card: c, word: wordMap[c.wordId] }))
         setWeakWords(ranked)
+      } else {
+        setWeakWords([])
       }
 
       // 総学習回数ランキング トップ10
@@ -99,11 +101,16 @@ export default function Stats() {
           topStudy.filter(c => studyWordMap[c.wordId])
             .map(c => ({ card: c, word: studyWordMap[c.wordId] }))
         )
+      } else {
+        setStudyRanking([])
       }
 
       setLoading(false)
     }
+
     load()
+    window.addEventListener('vocaleap:synced', load)
+    return () => window.removeEventListener('vocaleap:synced', load)
   }, [])
 
   if (wordContext) {

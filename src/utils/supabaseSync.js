@@ -324,7 +324,12 @@ export async function mergeChallengeHistory(userId, db) {
 
     for (const rc of remote) {
       if (!localDates.has(rc.date)) {
-        await db.challengeHistory.add({ date: new Date(rc.date), result: rc.score ?? 0, cleared: rc.cleared ?? false }).catch(() => {})
+        await db.challengeHistory.add({
+          date:      new Date(rc.date),
+          result:    rc.score     ?? 0,
+          cleared:   rc.cleared   ?? false,
+          totalTime: rc.total_time ?? null,
+        }).catch(() => {})
       }
     }
 
