@@ -94,7 +94,7 @@ export default function HeatmapPage() {
               return (
                 <div key={part}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{part}</span>
+                    <span className="text-xs font-bold text-slate-400 tracking-wider" style={{ textTransform: part === 'α' ? 'none' : 'uppercase' }}>{part}</span>
                     <span className="text-xs text-slate-600">
                       {partCaptured}/{words.length}語
                     </span>

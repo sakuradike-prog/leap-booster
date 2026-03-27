@@ -56,3 +56,18 @@ db.version(9).stores({
   // チェックした単語（単語解説画面でブックマーク的に使う）
   checked_words: '++id, leapNumber, checkedAt',
 })
+
+db.version(10).stores({
+  // week_points / week_start_date を userStats に追加（非インデックス項目のためスキーマ変更なし）
+  // スムーズなマイグレーションのため空upgradeを定義
+}).upgrade(() => {
+  // no-op: week_points / week_start_date は非インデックスなのでDBスキーマ変更不要
+})
+
+db.version(11).stores({
+  // cards に spellCorrectCount / spellIncorrectCount を追加（非インデックス項目）
+  // スキーマ変更なし: 既存データは undefined → ?? 0 で扱う
+  cards: '++id, wordId, lastReviewed',
+}).upgrade(() => {
+  // no-op: 非インデックスフィールドなのでDBスキーマ変更不要
+})

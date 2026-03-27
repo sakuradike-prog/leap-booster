@@ -98,6 +98,104 @@ function MenuButton({ onClick, bgColor, textDark = false, icon, label, sub }) {
   )
 }
 
+// ---- フリーズ情報モーダル ----
+const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土']
+
+function calcFreezeCountdown(currentStreak) {
+  const rem = currentStreak % 7
+  return rem === 0 ? 7 : 7 - rem
+}
+
+function getFreezeTargetLabel(daysLeft) {
+  const target = new Date()
+  target.setDate(target.getDate() + daysLeft)
+  const dayName = DAY_NAMES[target.getDay()]
+  // 今週か来週か判定（今週の日曜日を基準）
+  const today = new Date()
+  const thisSun = new Date(today)
+  thisSun.setDate(today.getDate() + (7 - today.getDay()))
+  const weekStr = target <= thisSun ? '今週' : '来週'
+  return `${weekStr}${dayName}曜日`
+}
+
+function FreezeInfoModal({ onClose, freezeCount, currentStreak }) {
+  const daysLeft = calcFreezeCountdown(currentStreak)
+  const targetLabel = getFreezeTargetLabel(daysLeft)
+  const isFull = freezeCount >= 2
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center"
+      style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+      onClick={onClose}>
+      <div className="w-full max-w-md rounded-t-2xl p-5 pb-8"
+        style={{ backgroundColor: '#1a2a3a', border: '1.5px solid #2a4a6a' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* ヘッダー */}
+        <div className="flex items-center justify-between mb-4">
+          <span className="font-black text-lg tracking-wider"
+            style={{ fontFamily: "'Bebas Neue', sans-serif", color: '#0cf', letterSpacing: '.12em' }}>
+            ❄️ FREEZE
+          </span>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl leading-none">×</button>
+        </div>
+
+        {/* 保有数テキスト + アイコン */}
+        <div className="flex items-center gap-3 justify-center mb-4">
+          <div className="flex gap-2">
+            {[0, 1].map(i => (
+              <span key={i} style={{
+                fontSize: 36,
+                opacity: i < freezeCount ? 1 : 0.18,
+                filter: i < freezeCount ? 'drop-shadow(0 0 6px rgba(0,200,255,0.6))' : 'grayscale(1)',
+              }}>❄️</span>
+            ))}
+          </div>
+          <div className="text-sm font-bold" style={{ color: freezeCount > 0 ? '#0cf' : '#64748b' }}>
+            {freezeCount}個保有中
+          </div>
+        </div>
+
+        {/* カウントダウン or 満タンメッセージ */}
+        {isFull ? (
+          <div className="rounded-xl p-3 mb-4 text-center"
+            style={{ backgroundColor: 'rgba(0,200,255,0.12)', border: '1px solid rgba(0,200,255,0.3)' }}>
+            <div className="text-sm font-bold" style={{ color: '#0cf' }}>満タンです ❄️❄️</div>
+          </div>
+        ) : (
+          <div className="rounded-xl p-3 mb-4 text-center"
+            style={{ backgroundColor: 'rgba(0,200,255,0.08)', border: '1px solid rgba(0,200,255,0.2)' }}>
+            <div className="text-sm font-black mb-0.5" style={{ color: '#fff' }}>
+              あと <span style={{ color: '#0cf', fontSize: 20 }}>{daysLeft}</span> 日！
+            </div>
+            <div className="text-xs" style={{ color: '#7dd3fc' }}>
+              {targetLabel}まで続ければ獲得できます 🎯
+            </div>
+          </div>
+        )}
+
+        {/* 説明 */}
+        <div className="text-xs leading-relaxed space-y-2" style={{ color: '#94a3b8' }}>
+          <div>
+            <div className="font-bold text-white mb-1">❄️ フリーズのルール</div>
+            <ul className="space-y-1 list-none">
+              <li>・7日連続学習で1個獲得（最大2個保持）</li>
+              <li>・1日だけ空いたとき<span className="text-white">自動で消費</span>してストリークを守る</li>
+            </ul>
+          </div>
+          <div>
+            <div className="font-bold text-white mb-1">🎁 プレゼント機能（近日公開）</div>
+            <p>
+              Freezeを2個持っている状態でさらに獲得条件を満たすと、Freezeを持っていないクラスメートに
+              <span className="text-white font-bold">あなたの名前で</span>ランダムにプレゼントされます ❄️🎁
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ---- メイン ----
 export default function Home() {
   const navigate = useNavigate()
@@ -109,6 +207,7 @@ export default function Home() {
   const [consecutiveCorrect, setConsecutiveCorrect] = useState(0)
   const [notice, setNotice] = useState(null)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [showFreezeInfo, setShowFreezeInfo] = useState(false)
 
   // 起動時にストリーク状態チェック（Supabase同期完了後に実行）
   useEffect(() => {
@@ -183,6 +282,15 @@ export default function Home() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#fff8e8' }}>
     <div className="max-w-[600px] mx-auto min-h-screen flex flex-col">
+
+      {/* フリーズ情報モーダル */}
+      {showFreezeInfo && (
+        <FreezeInfoModal
+          onClose={() => setShowFreezeInfo(false)}
+          freezeCount={freezeCount}
+          currentStreak={stats?.currentStreak ?? 0}
+        />
+      )}
 
       {/* トースト通知 */}
       {notice && (
@@ -396,14 +504,15 @@ export default function Home() {
             </div>
 
             {/* フリーズ全幅バー */}
-            <div
-              className="flex items-center justify-between px-3 py-2 rounded-xl border-[2.5px]"
+            <button
+              onClick={() => setShowFreezeInfo(true)}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl border-[2.5px] active:scale-[.98] transition-transform"
               style={freezeCount > 0
                 ? { backgroundColor: '#ccf0ff', borderColor: '#0099cc', boxShadow: '2px 2px 0 #0099cc' }
                 : { backgroundColor: '#ebebeb', borderColor: '#ccc', boxShadow: '2px 2px 0 #bbb', opacity: .65 }
               }
             >
-              <div>
+              <div className="text-left">
                 <div style={{
                   fontFamily: "'Bebas Neue', sans-serif",
                   fontSize: 12,
@@ -413,7 +522,12 @@ export default function Home() {
                   ❄️ FREEZE
                 </div>
                 <div style={{ fontSize: 8, color: freezeCount > 0 ? '#0099cc' : '#aaa', marginTop: 1 }}>
-                  {freezeCount > 0 ? '7日ごとに獲得・最大2個' : '次の7日達成で獲得'}
+                  {(() => {
+                    const streak = stats?.currentStreak ?? 0
+                    const daysLeft = calcFreezeCountdown(streak)
+                    if (freezeCount >= 2) return '満タン！続けると仲間にプレゼント 🎁'
+                    return `あと${daysLeft}日でフリーズゲット！`
+                  })()}
                 </div>
               </div>
               <div className="flex gap-1.5 items-center">
@@ -427,7 +541,7 @@ export default function Home() {
                   }}>❄️</span>
                 ))}
               </div>
-            </div>
+            </button>
 
           </div>
         )}
@@ -449,8 +563,8 @@ export default function Home() {
             bgColor="#ffcc00"
             textDark
             icon={<IconDaily />}
-            label="4択練習"
-            sub="ポイントなし・何度でも挑戦できる"
+            label="Daily Quiz"
+            sub="毎日初回のみポイント獲得・何度でも挑戦できる"
           />
 
           <MenuButton
@@ -458,7 +572,7 @@ export default function Home() {
             bgColor="#ff2255"
             icon={<IconChallenge />}
             label="30問チャレンジ"
-            sub="1日1回・ノーミス30問・ポイント獲得"
+            sub="1日1回・ノーミス30問・大量ポイント獲得"
           />
 
           <MenuButton

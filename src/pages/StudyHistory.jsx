@@ -23,14 +23,17 @@ export default function StudyHistory() {
 
   useEffect(() => {
     async function load() {
-      const [allCards, capturedList] = await Promise.all([
+      const [allCards, capturedList, checkedList] = await Promise.all([
         db.cards.toArray(),
         db.captured_words.toArray(),
+        db.checked_words.toArray(),
       ])
+      const checkedLeapSet = new Set(checkedList.map(c => c.leapNumber))
 
       // 全wordIdを集める（cards + captured_words の leapNumber で lookup）
       const cardWordIds = allCards.map(c => c.wordId)
       const capturedLeapNums = capturedList.map(c => c.leapNumber)
+      const capturedLeapSet = new Set(capturedLeapNums)
 
       const [cardWords, capturedWords] = await Promise.all([
         cardWordIds.length > 0
@@ -58,20 +61,22 @@ export default function StudyHistory() {
       const dateMap = {}
       const seenKeys = new Set()
 
-      function addEntry(key, date, word, isCaptured = false) {
+      function addEntry(key, date, word) {
         const dedupeKey = `${word.id}_${key}`
         if (seenKeys.has(dedupeKey)) return
         seenKeys.add(dedupeKey)
         if (!dateMap[key]) dateMap[key] = { dateKey: key, date, entries: [] }
         const hasError = (wordIdToIncorrectCount[word.id] ?? 0) >= 1
-        dateMap[key].entries.push({ word, date: new Date(date), isCaptured, hasError })
+        const isCaptured = capturedLeapSet.has(word.leapNumber)
+        const isChecked = checkedLeapSet.has(word.leapNumber)
+        dateMap[key].entries.push({ word, date: new Date(date), isCaptured, isChecked, hasError })
       }
 
       // cards からの履歴（lastReviewed があるもののみ）
       for (const card of allCards) {
         if (!card.lastReviewed || !wordMap[card.wordId]) continue
         const d = new Date(card.lastReviewed)
-        addEntry(dayKey(d), d, wordMap[card.wordId], false)
+        addEntry(dayKey(d), d, wordMap[card.wordId])
       }
 
       // captured_words からの履歴
@@ -79,7 +84,7 @@ export default function StudyHistory() {
         const word = leapNumMap[cap.leapNumber]
         if (!word) continue
         const d = cap.capturedAt ? new Date(cap.capturedAt) : new Date()
-        addEntry(dayKey(d), d, word, true)
+        addEntry(dayKey(d), d, word)
       }
 
       if (Object.keys(dateMap).length === 0) { setLoading(false); return }
@@ -99,7 +104,11 @@ export default function StudyHistory() {
     }
     load()
     window.addEventListener('vocaleap:synced', load)
-    return () => window.removeEventListener('vocaleap:synced', load)
+    window.addEventListener('vocaleap:checked', load)
+    return () => {
+      window.removeEventListener('vocaleap:synced', load)
+      window.removeEventListener('vocaleap:checked', load)
+    }
   }, [])
 
   // 単語詳細から戻ったときにスクロール位置を復元
@@ -131,6 +140,7 @@ export default function StudyHistory() {
         <div className="max-w-[600px] mx-auto px-5 py-3 flex items-center gap-3">
           <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
           <h1 className="text-lg font-bold">学習履歴</h1>
+          <span className="text-slate-500 text-xs ml-1">間違えたことのある単語は青色で表示されています</span>
         </div>
       </div>
       <div className="max-w-[600px] mx-auto px-4 py-6">
@@ -147,7 +157,7 @@ export default function StudyHistory() {
                   <span className="text-slate-600 font-normal ml-2">{entries.length}件</span>
                 </p>
                 <div className="flex flex-col gap-1">
-                  {entries.map(({ word, isCaptured, hasError }, i) => (
+                  {entries.map(({ word, isCaptured, isChecked, hasError }, i) => (
                     <button
                       key={`${word.id}_${i}`}
                       onClick={() => {
@@ -157,9 +167,9 @@ export default function StudyHistory() {
                       className="w-full text-left px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center gap-3 active:scale-95 transition-all"
                     >
                       <span className="text-slate-500 text-xs w-14 shrink-0">No.{word.leapNumber}</span>
-                      <WordBadges isCaptured={isCaptured} />
-                      <span className={`font-bold flex-1 truncate ${hasError ? 'text-blue-400' : 'text-white'}`}>{word.word}</span>
-                      <span className="text-slate-500 text-sm truncate max-w-28">{word.meaning}</span>
+                      <span className={`font-bold truncate ${hasError ? 'text-blue-400' : 'text-white'}`}>{word.word}</span>
+                      <WordBadges isCaptured={isCaptured} isChecked={isChecked} />
+                      <span className="text-slate-500 text-sm truncate max-w-28 ml-auto">{word.meaning}</span>
                     </button>
                   ))}
                 </div>

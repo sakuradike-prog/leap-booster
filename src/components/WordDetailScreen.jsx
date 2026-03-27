@@ -141,6 +141,8 @@ export default function WordDetailScreen({ word, onBack, sessionWords = null, in
         if (session?.user?.id) deleteCheckedWord(session.user.id, currentWord.leapNumber)
       })
     }
+    // 親コンポーネントのバッジ表示を即時更新するためのイベント
+    window.dispatchEvent(new CustomEvent('vocaleap:checked'))
   }
 
   useEffect(() => {
@@ -273,14 +275,14 @@ export default function WordDetailScreen({ word, onBack, sessionWords = null, in
             {/* チェックボタン（大型） */}
             <button
               onClick={handleToggleCheck}
-              className={`w-14 h-14 rounded-full flex-shrink-0 flex items-center justify-center transition-all duration-150 active:scale-90 ${
+              className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center transition-all duration-150 active:scale-90 ${
                 isChecked
-                  ? 'bg-amber-400 shadow-[0_0_18px_4px_rgba(251,191,36,0.55)]'
+                  ? 'bg-amber-400 shadow-[0_0_14px_3px_rgba(251,191,36,0.55)]'
                   : 'bg-slate-800 border-2 border-slate-600 hover:border-slate-400'
               }`}
               title={isChecked ? 'チェックを外す' : 'チェックする'}
             >
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                 stroke={isChecked ? 'white' : '#475569'}
                 strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
               >

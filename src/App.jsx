@@ -28,6 +28,27 @@ import { migrateLocalDataToServer } from './utils/migrateToServer'
 import { mergeCapturedWords, mergeCards, mergeChallengeHistory, mergeWarmupHistory, mergeDailyQuizHistory, mergeCheckedWords, syncDisplayName } from './utils/supabaseSync'
 import { mergeConsecutiveCorrect } from './utils/consecutiveCorrect'
 
+// ── 認証キャッシュ（LocalStorage, 24時間有効） ──────────────────────────
+const AUTH_CACHE_KEY = 'vocaleap_auth_cache'
+const AUTH_CACHE_TTL = 24 * 60 * 60 * 1000
+
+function getCachedAuth(uid) {
+  try {
+    const raw = localStorage.getItem(AUTH_CACHE_KEY)
+    if (!raw) return null
+    const c = JSON.parse(raw)
+    if (c.uid !== uid) return null
+    if (Date.now() - c.ts > AUTH_CACHE_TTL) return null
+    return { nickname: c.nickname, role: c.role }
+  } catch { return null }
+}
+function setCachedAuth(uid, nickname, role) {
+  try { localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({ uid, nickname, role, ts: Date.now() })) } catch {}
+}
+function clearCachedAuth() {
+  localStorage.removeItem(AUTH_CACHE_KEY)
+}
+
 // 歓迎モーダル
 function WelcomeModal({ nickname, onSettings, onClose }) {
   return (
@@ -133,33 +154,52 @@ function App() {
         const uid = session.user.id
         setCurrentUserId(uid)
 
-        // allowed_users チェック（タイムアウト8秒）
-        let allowed = null
-        try {
-          const result = await Promise.race([
-            supabase.from('allowed_users').select('nickname, role').eq('email', session.user.email).single(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
-          ])
-          if (!result.error && result.data) allowed = result.data
-        } catch {
-          // タイムアウトまたはネットワークエラー → 未ログイン扱いにせず再試行ボタンを表示
-          setAllowedUser('error')
+        // ── キャッシュヒット：即座に認証済みにしてバックグラウンドで更新 ──
+        const cached = getCachedAuth(uid)
+        if (cached) {
+          setAllowedUser({ nickname: cached.nickname, role: cached.role })
+          syncDisplayName(uid, cached.nickname)
+          runSync(uid)
+          // バックグラウンドでキャッシュを更新（失敗しても表示に影響なし）
+          supabase.from('allowed_users').select('nickname, role').eq('email', session.user.email).single()
+            .then(({ data, error }) => {
+              if (!error && data) setCachedAuth(uid, data.nickname, data.role)
+            })
           return
+        }
+
+        // ── キャッシュなし：最大3回リトライ ──
+        let allowed = null
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const result = await Promise.race([
+              supabase.from('allowed_users').select('nickname, role').eq('email', session.user.email).single(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 12000)),
+            ])
+            if (!result.error && result.data) { allowed = result.data; break }
+            break // データなし（許可されていない）
+          } catch {
+            if (attempt < 2) {
+              await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
+              continue
+            }
+            setAllowedUser('error')
+            return
+          }
         }
 
         if (!allowed) {
           await supabase.auth.signOut()
+          clearCachedAuth()
           setAllowedUser(false)
           setCurrentUserId(null)
           return
         }
 
+        setCachedAuth(uid, allowed.nickname, allowed.role)
         setAllowedUser({ nickname: allowed.nickname, role: allowed.role })
-
-        // ニックネームを user_stats に同期
         syncDisplayName(uid, allowed.nickname)
 
-        // 初回ログイン歓迎モーダル
         const welcomeKey = `vocaleap_welcomed_${uid}`
         if (!localStorage.getItem(welcomeKey)) {
           setShowWelcome(true)
@@ -168,6 +208,7 @@ function App() {
         migrateLocalDataToServer(uid)
         runSync(uid)
       } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
+        clearCachedAuth()
         setAllowedUser(null)
         setCurrentUserId(null)
       }
@@ -236,8 +277,8 @@ function App() {
     )
   }
 
-  // ログイン済みだが allowed_users 確認中
-  if (currentUserId && allowedUser === undefined) {
+  // 認証状態確認中（INITIAL_SESSION 受信前 or allowed_users チェック中）
+  if (allowedUser === undefined) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white gap-4">
         <div className="text-4xl animate-spin">⏳</div>
@@ -265,6 +306,49 @@ function App() {
   // アクセス拒否
   if (allowedUser === false) {
     return <NotAllowedPage />
+  }
+
+  // 未ログイン → ログイン画面
+  if (allowedUser === null) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center px-6">
+        <div className="max-w-sm w-full flex flex-col items-center gap-6 text-white">
+          <div className="text-center">
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 56, letterSpacing: '.06em', lineHeight: 1, color: '#fff' }}>
+              LEAP<span style={{ color: '#ff2255' }}>Booster</span>
+            </div>
+            <p className="text-slate-400 text-sm mt-2">英単語学習アプリ</p>
+          </div>
+
+          <div className="bg-slate-800 rounded-2xl p-5 w-full text-center">
+            <p className="text-slate-300 text-sm leading-relaxed">
+              このアプリは<span className="text-white font-bold">登録されたユーザー専用</span>です。<br />
+              先生から案内されたGoogleアカウントでログインしてください。
+            </p>
+          </div>
+
+          <button
+            onClick={() => supabase.auth.signInWithOAuth({
+              provider: 'google',
+              options: { redirectTo: window.location.origin },
+            })}
+            className="w-full py-4 bg-white hover:bg-slate-100 text-slate-900 rounded-2xl font-bold text-lg transition-colors flex items-center justify-center gap-3"
+          >
+            <svg width="20" height="20" viewBox="0 0 48 48">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+            Googleでログイン
+          </button>
+
+          <p className="text-slate-600 text-xs text-center">
+            登録されていないGoogleアカウントではログインできません
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

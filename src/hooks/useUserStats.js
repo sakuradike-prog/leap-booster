@@ -27,6 +27,19 @@ const DEFAULT_STATS = {
   todayPointsDate: null,
 }
 
+function getThisMonday() {
+  const d = new Date()
+  const day = d.getDay() // 0=Sun, 1=Mon, ...
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function toDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 function isSameDay(a, b) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -191,6 +204,12 @@ export function useUserStats() {
       ? (current.todayPoints ?? 0) + points
       : points
 
+    // 週次ポイント更新
+    const thisMonday = toDateStr(getThisMonday())
+    const weekPts = current.weekStartDate === thisMonday
+      ? (current.weekPoints ?? 0) + points
+      : points
+
     const updated = {
       ...DEFAULT_STATS,
       ...current,
@@ -203,6 +222,8 @@ export function useUserStats() {
       freezeCount: newFreezeCount,
       todayPoints: todayPts,
       todayPointsDate: today,
+      weekPoints: weekPts,
+      weekStartDate: thisMonday,
     }
     await db.userStats.put(updated)
     setStats(updated)
@@ -221,6 +242,12 @@ export function useUserStats() {
     const { newFreezeCount, freezeEarned } = calcNewFreeze(current, newStreak)
     const newLongest = Math.max(current.longestStreak ?? 0, newStreak)
 
+    // 週次ポイント更新
+    const thisMonday = toDateStr(getThisMonday())
+    const weekPts = current.weekStartDate === thisMonday
+      ? (current.weekPoints ?? 0) + points
+      : points
+
     const updated = {
       ...DEFAULT_STATS,
       ...current,
@@ -230,6 +257,8 @@ export function useUserStats() {
       lastStudyDate: today,
       dailyQuizLastDate: today,
       freezeCount: newFreezeCount,
+      weekPoints: weekPts,
+      weekStartDate: thisMonday,
     }
     await db.userStats.put(updated)
     setStats(updated)
@@ -247,12 +276,21 @@ export function useUserStats() {
     const todayPts = (current.todayPointsDate && isSameDay(new Date(current.todayPointsDate), today))
       ? (current.todayPoints ?? 0) + pts
       : pts
+
+    // 週次ポイント更新
+    const thisMonday = toDateStr(getThisMonday())
+    const weekPts = current.weekStartDate === thisMonday
+      ? (current.weekPoints ?? 0) + pts
+      : pts
+
     const updated = {
       ...DEFAULT_STATS,
       ...current,
       totalPoints: (current.totalPoints ?? 0) + pts,
       todayPoints: todayPts,
       todayPointsDate: today,
+      weekPoints: weekPts,
+      weekStartDate: thisMonday,
     }
     await db.userStats.put(updated)
     setStats(updated)
@@ -262,6 +300,16 @@ export function useUserStats() {
   }, [])
 
   const clearFreezeNotice = useCallback(() => setFreezeNotice(null), [])
+
+  /** チャレンジ開始時に challengeLastDate を記録（途中断念・失敗でも再挑戦不可にする） */
+  const recordChallengeStart = useCallback(async () => {
+    const current = await db.userStats.get(1) ?? { ...DEFAULT_STATS }
+    const today = toDateStr(new Date())
+    const updated = { ...DEFAULT_STATS, ...current, challengeLastDate: today }
+    await db.userStats.put(updated)
+    setStats(updated)
+    getCurrentUserId().then(uid => { if (uid) syncUserStats(uid, updated) })
+  }, [])
 
   return {
     stats,
@@ -273,6 +321,7 @@ export function useUserStats() {
     declineFreeze,
     recordStudy,
     recordChallengeClear,
+    recordChallengeStart,
     recordDailyQuiz,
     addPoints,
   }

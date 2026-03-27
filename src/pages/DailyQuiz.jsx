@@ -14,13 +14,15 @@ import { addStudyLog } from '../utils/studyLog'
 import { startSession, endSession } from '../utils/sessionLog'
 import { incrementConsecutiveCorrect, resetConsecutiveCorrect } from '../utils/consecutiveCorrect'
 import { sourceBookFilter } from '../utils/bookVersion'
-import { syncCard, syncDailyQuizHistory } from '../utils/supabaseSync'
+import { syncCard, syncDailyQuizHistory, syncDailyModeCompletion, fetchTodayModeCompletions } from '../utils/supabaseSync'
 import { supabase } from '../lib/supabase'
 
 
 const BASE_PARTS = ['Part1', 'Part2', 'Part3', 'Part4']
 const ALL_PARTS  = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const QUESTIONS = 10
+const SPELL_QUESTIONS = 5
+const SPELL_LAST_PART_KEY = 'vocaleap_spell_last_part'
 
 function getQuizTimerSecs() {
   const v = parseInt(localStorage.getItem('quizTimerSecs'), 10)
@@ -36,13 +38,118 @@ function shuffle(arr) {
   return a
 }
 
+// ---- モード選択画面 ----
+function ModeSelect({ onSelectMode, onBack }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const [practiceCompleted, setPracticeCompleted] = useState(
+    !!localStorage.getItem(`vocaleap_practice_daily_${today}`)
+  )
+  const [spellCompleted, setSpellCompleted] = useState(
+    !!localStorage.getItem(`vocaleap_spell_daily_${today}`)
+  )
+
+  useEffect(() => {
+    async function checkServer() {
+      const { data: { session } } = await supabase.auth.getSession()
+      const userId = session?.user?.id
+      if (!userId) return
+      const completions = await fetchTodayModeCompletions(userId)
+      if (completions.includes('practice')) {
+        localStorage.setItem(`vocaleap_practice_daily_${today}`, '1')
+        setPracticeCompleted(true)
+      }
+      if (completions.includes('spell')) {
+        localStorage.setItem(`vocaleap_spell_daily_${today}`, '1')
+        setSpellCompleted(true)
+      }
+    }
+    checkServer()
+  }, [today])
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-white">
+      <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800/60">
+        <div className="max-w-[600px] mx-auto px-5 py-3 flex items-center gap-3">
+          <button onClick={onBack} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
+          <h1 className="text-lg font-bold">💡 Daily Quiz</h1>
+        </div>
+      </div>
+      <div className="flex flex-col gap-4 p-4 max-w-[600px] mx-auto">
+        <div className="text-center mb-2">
+          <div className="text-2xl mb-1">💡</div>
+          <div className="text-xl font-bold text-white">Daily Quiz</div>
+          <div className="text-slate-400 text-sm">毎日初回のみポイント獲得・何度でも挑戦</div>
+        </div>
+
+        {/* 4択練習 */}
+        <button
+          onClick={() => onSelectMode('4choice')}
+          className="w-full bg-slate-800 border border-slate-600 rounded-2xl p-4 text-left hover:border-blue-500 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">📝</span>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div className="text-white font-bold">4択練習</div>
+                {practiceCompleted && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-green-400 border border-green-400 rounded px-1.5 py-0.5">本日学習済み</span>
+                    <img src="/badge.png" alt="" style={{ width: 24, height: 24 }} />
+                  </div>
+                )}
+              </div>
+              <div className="text-slate-400 text-sm">英単語を見て意味を選ぶ</div>
+            </div>
+          </div>
+        </button>
+
+        {/* 仕分け練習 - 近日公開 */}
+        <button disabled className="w-full bg-slate-900 border border-slate-700 rounded-2xl p-4 text-left opacity-50 cursor-not-allowed">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🃏</span>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div className="text-slate-400 font-bold">仕分け練習</div>
+                <span className="text-xs text-amber-400 border border-amber-400 rounded px-1.5 py-0.5">近日公開</span>
+              </div>
+              <div className="text-slate-600 text-sm">わかる/わからないに仕分け</div>
+            </div>
+          </div>
+        </button>
+
+        {/* スペル入力 */}
+        <button
+          onClick={() => onSelectMode('spell')}
+          className="w-full bg-slate-800 border border-slate-600 rounded-2xl p-4 text-left hover:border-green-500 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">⌨️</span>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div className="text-white font-bold">スペル入力</div>
+                {spellCompleted && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-green-400 border border-green-400 rounded px-1.5 py-0.5">本日学習済み</span>
+                    <img src="/badge.png" alt="" style={{ width: 24, height: 24 }} />
+                  </div>
+                )}
+              </div>
+              <div className="text-slate-400 text-sm">例文の空欄に単語をタイプ（5問）</div>
+            </div>
+          </div>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ---- パート選択画面 ----
 const PRACTICE_LAST_PART_KEY = 'vocaleap_practice_last_part'
 
 const CHECKED_MIN = 10
 const VALID_PARTS = [...ALL_PARTS, '__checked__']
 
-function PartSelect({ onStart }) {
+function PartSelect({ onStart, onBack }) {
   const [selected, setSelected] = useState(() => {
     try {
       const saved = localStorage.getItem(PRACTICE_LAST_PART_KEY)
@@ -55,7 +162,6 @@ function PartSelect({ onStart }) {
   const [wordCounts, setWordCounts] = useState({})
   const [checkedCount, setCheckedCount] = useState(0)
   const [maskMode, setMaskMode] = useState(false)
-  const navigate = useNavigate()
 
   // α単語がDBに存在する場合のみαを表示
   const PARTS = (wordCounts['α'] ?? 0) > 0 ? ALL_PARTS : BASE_PARTS
@@ -88,12 +194,12 @@ function PartSelect({ onStart }) {
     <div className="min-h-screen bg-slate-900 text-white">
       <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800/60">
         <div className="max-w-[600px] mx-auto px-5 py-3 flex items-center gap-3">
-          <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
+          <button onClick={onBack} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
           <h1 className="text-lg font-bold">💡 4択練習</h1>
         </div>
       </div>
       <div className="flex flex-col items-center px-4 py-8">
-      <p className="text-slate-400 text-sm mb-6">ポイントなし・何度でも挑戦できる</p>
+      <p className="text-slate-400 text-sm mb-6">10問・何度でも挑戦できる</p>
 
       <div className="w-full max-w-sm md:max-w-[600px] flex flex-col gap-3 mb-8">
         {PARTS.map(part => (
@@ -208,6 +314,136 @@ async function saveStudyCountBatch(words, incorrectIds = new Set()) {
 // 単語を〇〇〇〇に変換（スペースは保持）
 function maskWord(word) {
   return word.replace(/[^ ]/g, '○')
+}
+
+// ── スペル入力用: 語幹・語尾分離ロジック ──────────────────────────────
+
+/** 例文内で原形に対応する出現形を検索 */
+function findInflectedForm(sentence, baseWord) {
+  if (!sentence || !baseWord) return null
+  const escaped = baseWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  // 直接マッチ（offer→offered, run→running）
+  let m = sentence.match(new RegExp(`\\b${escaped}\\w*`, 'i'))
+  if (m) return m[0]
+  // 語末変化マッチ（y→i: ability→abilities, e削除: achieve→achieved）
+  if (baseWord.length > 3) {
+    const stem = baseWord.slice(0, -1).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    m = sentence.match(new RegExp(`\\b${stem}\\w+`, 'i'))
+    if (m) return m[0]
+  }
+  return null
+}
+
+/** 出現形から語尾（suffix）を抽出 */
+function extractSuffix(baseWord, inflectedForm) {
+  const base = baseWord.toLowerCase()
+  const inf = inflectedForm.toLowerCase()
+  if (inf === base) return ''
+  // パターン1: offer→offered（直接プレフィックス）
+  if (inf.startsWith(base)) return inf.slice(base.length)
+  // パターン2: run→running（子音重複: base + last_char + suffix）
+  if (inf.startsWith(base + base[base.length - 1])) return inf.slice(base.length + 1)
+  // パターン3: ability→abilities / achieve→achieved（語末1文字変化）
+  if (base.length > 1 && inf.startsWith(base.slice(0, -1))) return inf.slice(base.length - 1)
+  return ''
+}
+
+/** 例文内の出現形を __SPLIT__ に置換し、語尾を返す */
+function buildSpellDisplay(sentence, baseWord) {
+  const inflected = findInflectedForm(sentence, baseWord)
+  if (!inflected) return { parts: [sentence], suffix: '', inflected: baseWord }
+  const suffix = extractSuffix(baseWord, inflected)
+  const escaped = inflected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const parts = sentence.replace(new RegExp(`\\b${escaped}\\b`, 'i'), '\x00').split('\x00')
+  return { parts, suffix, inflected }
+}
+
+/** 語幹伏せ字の JSX レンダリング（正解後は緑でワード表示） */
+function SpellSentence({ sentence, baseWord, revealWord }) {
+  const { parts, suffix } = buildSpellDisplay(sentence, baseWord)
+  if (parts.length === 1) return <span>{sentence}</span>
+  return (
+    <>
+      <span>{parts[0]}</span>
+      <span className="inline-flex items-baseline">
+        <span className={`font-mono font-bold border-b-2 px-0.5 ${
+          revealWord ? 'text-green-400 border-green-400' : 'text-slate-200 border-slate-400'
+        }`}>
+          {revealWord ? revealWord : '_'.repeat(baseWord.length)}
+        </span>
+        <span className={revealWord ? 'text-green-400 font-bold' : 'text-white'}>{suffix}</span>
+      </span>
+      <span>{parts[1]}</span>
+    </>
+  )
+}
+
+// warmupSentences からスペル練習用問題を取得
+async function fetchSpellQuestions(parts) {
+  const hasChecked = parts.includes('__checked__')
+  const regularParts = parts.filter(p => p !== '__checked__')
+  let combined = []
+
+  if (hasChecked) {
+    const checkedEntries = await db.checked_words.toArray()
+    const leapNums = checkedEntries.map(c => c.leapNumber)
+    if (leapNums.length > 0) {
+      const all = await db.warmupSentences.toArray()
+      combined = [...combined, ...all.filter(s => leapNums.includes(s.leapNumber))]
+    }
+  }
+
+  if (regularParts.length > 0) {
+    for (const part of regularParts) {
+      const rows = await db.warmupSentences.where('leapPart').equals(part).toArray()
+      combined = [...combined, ...rows]
+    }
+  }
+
+  // バージョンフィルタ：現在の単語帳に存在する単語文字列のみに絞る
+  // ※ 旧版と改訂版では同じ leapNumber に別の単語が割り当てられる場合があるため、
+  //    leapNumber ではなく word 文字列でマッチングする
+  const validWords = await db.words.filter(sourceBookFilter).toArray()
+  const validWordStrings = new Set(validWords.map(w => w.word))
+  const versionFiltered = combined.filter(s => s.word && validWordStrings.has(s.word))
+
+  // 重複除去（同じ leapNumber + exampleIndex）
+  const seen = new Set()
+  const deduped = versionFiltered.filter(s => {
+    const key = `${s.leapNumber}-${s.exampleIndex ?? 0}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+
+  // 同じ単語が1セッションで2度出ないよう word 文字列単位で1件に絞る
+  // ※ leapNumber は旧版・改訂版で別の単語に使いまわされる可能性があるため word で判定
+  const seenWords = new Set()
+  const wordDeduped = deduped.filter(s => {
+    if (!s.word || seenWords.has(s.word)) return false
+    seenWords.add(s.word)
+    return true
+  })
+
+  if (wordDeduped.length === 0) return []
+
+  const shuffled = [...wordDeduped].sort(() => Math.random() - 0.5)
+  const selected = shuffled.slice(0, SPELL_QUESTIONS)
+
+  // wordObj を付与（解説スライドショー用）
+  const wordStrings = [...new Set(selected.map(s => s.word).filter(Boolean))]
+  const wordRecords = await db.words.where('word').anyOf(wordStrings).and(sourceBookFilter).toArray()
+  const preciseMap = {}
+  const wordStringMap = {}
+  for (const w of wordRecords) {
+    preciseMap[`${w.word}:${w.leapNumber}`] = w
+    if (!wordStringMap[w.word]) wordStringMap[w.word] = w
+  }
+
+  return selected.map(s => ({
+    ...s,
+    wordObj: preciseMap[`${s.word}:${s.leapNumber}`] ?? wordStringMap[s.word] ?? null,
+  }))
 }
 
 // ---- 出題画面 ----
@@ -452,7 +688,7 @@ function QuizScreen({ questions, onFinish, onHome, maskMode }) {
 }
 
 // ---- 結果画面（解説ボタン付き） ----
-function ResultScreen({ score, onReview, onHome }) {
+function ResultScreen({ score, earnedPoints = 0, onReview, onHome }) {
   const emoji =
     score === QUESTIONS ? '🎉' :
     score >= 8 ? '😄' :
@@ -462,7 +698,14 @@ function ResultScreen({ score, onReview, onHome }) {
     <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center px-4 text-center">
       <div className="text-7xl mb-4">{emoji}</div>
       <h2 className="text-5xl font-black text-blue-400 mb-1">{score} / {QUESTIONS}</h2>
-      <p className="text-slate-400 mb-8">正解数</p>
+      <p className="text-slate-400 mb-4">正解数</p>
+
+      {earnedPoints > 0 && (
+        <div className="mb-6 px-5 py-3 bg-yellow-500/20 border border-yellow-500/50 rounded-2xl w-full max-w-sm md:max-w-[600px]">
+          <p className="text-yellow-300 font-bold text-lg">🪙 +{earnedPoints}pt 獲得！</p>
+          <p className="text-yellow-500/80 text-xs mt-0.5">今日の初回クリア達成</p>
+        </div>
+      )}
 
       <div className="w-full max-w-sm md:max-w-[600px] flex flex-col gap-4">
         <button
@@ -477,6 +720,462 @@ function ResultScreen({ score, onReview, onHome }) {
         >
           ホームへ
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ---- スペル入力：パート選択画面 ----
+function SpellPartSelect({ onStart, onBack }) {
+  const [selected, setSelected] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SPELL_LAST_PART_KEY)
+      const parsed = saved ? JSON.parse(saved) : ['Part1']
+      return parsed.filter(p => VALID_PARTS.includes(p))
+    } catch {
+      return ['Part1']
+    }
+  })
+  const [wordCounts, setWordCounts] = useState({})
+  const [checkedCount, setCheckedCount] = useState(0)
+
+  const PARTS = (wordCounts['α'] ?? 0) > 0 ? ALL_PARTS : BASE_PARTS
+
+  useEffect(() => {
+    async function fetchCounts() {
+      const counts = {}
+      for (const p of ALL_PARTS) {
+        counts[p] = await db.words.where('leapPart').equals(p).and(sourceBookFilter).count()
+      }
+      setWordCounts(counts)
+    }
+    fetchCounts()
+    db.checked_words.count().then(c => setCheckedCount(c)).catch(() => {})
+  }, [])
+
+  function toggle(part) {
+    setSelected(prev => {
+      const next = prev.includes(part) ? prev.filter(p => p !== part) : [...prev, part]
+      try { localStorage.setItem(SPELL_LAST_PART_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-white">
+      <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800/60">
+        <div className="max-w-[600px] mx-auto px-5 py-3 flex items-center gap-3">
+          <button onClick={onBack} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
+          <h1 className="text-lg font-bold">⌨️ スペル入力</h1>
+        </div>
+      </div>
+      <div className="flex flex-col items-center px-4 py-8">
+        <p className="text-slate-400 text-sm mb-6">5問1セット・タイマーなし・自分のペースで</p>
+
+        <div className="w-full max-w-sm md:max-w-[600px] flex flex-col gap-3 mb-8">
+          {PARTS.map(part => (
+            <button
+              key={part}
+              onClick={() => toggle(part)}
+              className={`flex items-center justify-between w-full py-4 px-5 rounded-xl text-lg font-bold border-2 transition-all ${
+                selected.includes(part)
+                  ? 'bg-green-700 border-green-400 text-white'
+                  : 'bg-slate-800 border-slate-600 text-slate-400'
+              }`}
+            >
+              <span>{part}</span>
+              <span className="text-sm font-normal">
+                {wordCounts[part] !== undefined ? `${wordCounts[part]}語` : '…'}
+              </span>
+            </button>
+          ))}
+
+          <button
+            onClick={() => checkedCount >= CHECKED_MIN && toggle('__checked__')}
+            disabled={checkedCount < CHECKED_MIN}
+            className={`flex items-center justify-between w-full py-4 px-5 rounded-xl text-lg font-bold border-2 transition-all ${
+              checkedCount < CHECKED_MIN
+                ? 'bg-orange-900/40 border-orange-700 text-orange-400 cursor-not-allowed'
+                : selected.includes('__checked__')
+                  ? 'bg-green-700 border-green-400 text-white'
+                  : 'bg-slate-800 border-slate-600 text-slate-400'
+            }`}
+          >
+            <span>☑ チェックした単語</span>
+            <span className="text-sm font-normal">
+              {checkedCount < CHECKED_MIN
+                ? 'チェックした単語がありません（または少なすぎます）'
+                : `${checkedCount}語`}
+            </span>
+          </button>
+        </div>
+
+        <button
+          onClick={() => onStart(selected)}
+          disabled={selected.length === 0}
+          className="w-full max-w-sm md:max-w-[600px] py-5 text-xl font-bold bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-2xl transition-colors"
+        >
+          スタート
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ---- スペル入力：問題画面 ----
+// spellCorrectCount / spellIncorrectCount を cards テーブルに保存
+async function saveSpellResults(questions, correctIdSet) {
+  for (const q of questions) {
+    const wordObj = q.wordObj
+    if (!wordObj?.id) continue
+    const isCorrect = correctIdSet.has(wordObj.id)
+    try {
+      const existing = await db.cards.where('wordId').equals(wordObj.id).first()
+      if (existing) {
+        const updates = {
+          studyCount: (existing.studyCount ?? 0) + 1,
+          lastReviewed: new Date(),
+          spellCorrectCount:   (existing.spellCorrectCount   ?? 0) + (isCorrect ? 1 : 0),
+          spellIncorrectCount: (existing.spellIncorrectCount ?? 0) + (isCorrect ? 0 : 1),
+        }
+        await db.cards.update(existing.id, updates)
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user?.id) syncCard(session.user.id, wordObj.leapNumber, wordObj.word, { ...existing, ...updates })
+        })
+      } else {
+        const newCard = {
+          wordId: wordObj.id,
+          lastReviewed: new Date(),
+          correctCount: 0,
+          incorrectCount: 0,
+          studyCount: 1,
+          spellCorrectCount:   isCorrect ? 1 : 0,
+          spellIncorrectCount: isCorrect ? 0 : 1,
+        }
+        await db.cards.add(newCard)
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user?.id) syncCard(session.user.id, wordObj.leapNumber, wordObj.word, newCard)
+        })
+      }
+    } catch { /* ignore */ }
+  }
+}
+
+function SpellQuizScreen({ questions, onFinish, onHome }) {
+  const [qIdx, setQIdx] = useState(0)
+  const [inputVal, setInputVal] = useState('')
+  const [inputSubmitted, setInputSubmitted] = useState('')  // 送信時の値を保持
+  const [status, setStatus] = useState('input') // 'input' | 'correct' | 'incorrect'
+  const [showJa, setShowJa] = useState(false)
+  const [scoreDisplay, setScoreDisplay] = useState(0)
+
+  const inputRef = useRef(null)
+  const scoreRef = useRef(0)
+  const correctIdsRef = useRef(new Set())
+  const wrongAnswersRef = useRef([])
+  const questionStartRef = useRef(Date.now())
+  const sessionIdRef = useRef(null)
+
+  const q = questions[qIdx]
+  const { parts: sentParts, suffix, inflected } = buildSpellDisplay(q?.answerEn ?? '', q?.word ?? '')
+
+  // 問題切り替え時
+  useEffect(() => {
+    setInputVal('')
+    setInputSubmitted('')
+    setStatus('input')
+    setShowJa(false)
+    questionStartRef.current = Date.now()
+    if (q?.answerEn) speak(q.answerEn, 'en-US', 0.85)
+    const leapNum = q?.leapNumber ?? q?.wordObj?.leapNumber
+    if (leapNum && q?.word) addStudyLog({ leapNumber: leapNum, word: q.word, eventType: 'studied', mode: 'spell' })
+    setTimeout(() => inputRef.current?.focus(), 700)
+  }, [qIdx]) // eslint-disable-line
+
+  useEffect(() => {
+    startSession('spell').then(id => { sessionIdRef.current = id })
+    return () => { endSession(sessionIdRef.current) }
+  }, []) // eslint-disable-line
+
+  function handleSubmit() {
+    if (status !== 'input' || inputVal.trim() === '') return
+    const normalized = inputVal.trim().toLowerCase()
+    const correct = (q.word ?? '').toLowerCase()
+    const isCorrect = normalized === correct
+    const leapNum = q.leapNumber ?? q.wordObj?.leapNumber
+    const rt = parseFloat(((Date.now() - questionStartRef.current) / 1000).toFixed(2))
+
+    setInputSubmitted(inputVal)
+
+    if (isCorrect) {
+      playCorrect()
+      scoreRef.current += 1
+      setScoreDisplay(s => s + 1)
+      incrementConsecutiveCorrect()
+      if (q.wordObj?.id) correctIdsRef.current.add(q.wordObj.id)
+      if (leapNum) addStudyLog({ leapNumber: leapNum, word: q.word, eventType: 'correct', mode: 'spell', responseTime: rt })
+      setStatus('correct')
+      // 正解→1.5秒後に自動進行
+      setTimeout(() => advanceTo(qIdx + 1), 1500)
+    } else {
+      playWrong()
+      resetConsecutiveCorrect()
+      wrongAnswersRef.current.push({ word: q.word, inflected: inflected ?? q.word, yourInput: inputVal.trim(), wordObj: q.wordObj ?? null })
+      if (leapNum) addStudyLog({ leapNumber: leapNum, word: q.word, eventType: 'incorrect', mode: 'spell', responseTime: rt })
+      setStatus('incorrect')
+    }
+  }
+
+  function handleSkip() {
+    if (status !== 'input') return
+    const leapNum = q.leapNumber ?? q.wordObj?.leapNumber
+    const rt = parseFloat(((Date.now() - questionStartRef.current) / 1000).toFixed(2))
+    wrongAnswersRef.current.push({ word: q.word, inflected: inflected ?? q.word, yourInput: '', wordObj: q.wordObj ?? null })
+    if (leapNum) addStudyLog({ leapNumber: leapNum, word: q.word, eventType: 'incorrect', mode: 'spell', responseTime: rt })
+    playWrong()
+    resetConsecutiveCorrect()
+    setInputSubmitted('')
+    setStatus('incorrect')
+  }
+
+  async function advanceTo(nextIdx) {
+    if (nextIdx >= questions.length) {
+      await saveSpellResults(questions, correctIdsRef.current)
+      onFinish({ score: scoreRef.current, total: questions.length, wrongAnswers: wrongAnswersRef.current })
+    } else {
+      setQIdx(nextIdx)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center px-4 py-6">
+      {/* 進捗 */}
+      <div className="w-full max-w-sm md:max-w-[600px] mb-4">
+        <div className="flex justify-between text-sm text-slate-400 mb-2">
+          <span className="font-bold">スペル入力練習</span>
+          <span>{qIdx + 1} / {questions.length}</span>
+        </div>
+        <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-green-500 rounded-full transition-all duration-300"
+            style={{ width: `${(qIdx / questions.length) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {/* 例文カード */}
+      <div className="w-full max-w-sm md:max-w-[600px] bg-slate-800 rounded-2xl px-6 py-5 mb-4">
+        <div className="text-xs text-slate-500 mb-1">{q.leapPart} No.{q.leapNumber}</div>
+        <p className="text-xl leading-relaxed text-white mb-4">
+          <SpellSentence
+            sentence={q.answerEn ?? ''}
+            baseWord={q.word ?? ''}
+            revealWord={status !== 'input' ? q.word : null}
+          />
+        </p>
+
+        {/* もう一度読み上げ */}
+        <button
+          onClick={() => q?.answerEn && speak(q.answerEn, 'en-US', 0.85)}
+          className="flex items-center gap-2 text-slate-400 hover:text-white text-sm active:opacity-60 transition-colors"
+        >
+          <span>🔊</span><span>もう一度読み上げ</span>
+        </button>
+      </div>
+
+      {/* 日本語訳トグル */}
+      {q?.questionJa && (
+        <div className="w-full max-w-sm md:max-w-[600px] mb-4">
+          {showJa ? (
+            <div className="bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3">
+              <div className="flex justify-between items-center">
+                <p className="text-slate-200 text-sm leading-relaxed">{q.questionJa}</p>
+                <button onClick={() => setShowJa(false)} className="text-slate-500 text-xs ml-3 shrink-0">隠す</button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowJa(true)}
+              className="w-full py-2.5 text-sm text-slate-500 hover:text-slate-300 border border-slate-800 hover:border-slate-600 rounded-xl transition-colors"
+            >
+              日本語訳を見る
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 入力エリア */}
+      <div className="w-full max-w-sm md:max-w-[600px]">
+        {/* 正解フィードバック（status !== 'input' のみ表示） */}
+        {status !== 'input' && (
+          <div className={`rounded-xl px-5 py-4 mb-4 ${
+            status === 'correct' ? 'bg-green-900/50 border border-green-600' : 'bg-red-900/50 border border-red-600'
+          }`}>
+            {status === 'correct' ? (
+              <div className="text-green-300 font-bold">✅ 正解！</div>
+            ) : (
+              <>
+                <div className="text-red-300 font-bold mb-1">❌ 不正解</div>
+                <div className="text-white font-bold">正解: <span className="font-mono">{q.word}</span></div>
+                {inputSubmitted && (
+                  <div className="text-slate-400 text-sm mt-1">あなたの入力: <span className="font-mono">{inputSubmitted}</span></div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 入力フォーム（iOSキーボード維持のため常にDOMに保持） */}
+        <div
+          className="flex gap-2 mb-3"
+          style={status !== 'input' ? { opacity: 0, pointerEvents: 'none' } : {}}
+        >
+          <input
+            ref={inputRef}
+            type="text"
+            inputMode="text"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            value={inputVal}
+            onChange={e => setInputVal(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSubmit() }}
+            placeholder="原形を入力..."
+            className="flex-1 bg-slate-800 border border-slate-600 focus:border-green-500 rounded-xl px-4 py-4 text-white text-lg font-mono outline-none transition-colors"
+          />
+          <button
+            onClick={handleSubmit}
+            disabled={inputVal.trim() === ''}
+            className="px-6 py-4 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-xl font-bold transition-colors active:scale-95"
+          >
+            送信
+          </button>
+        </div>
+
+        {status === 'input' ? (
+          <div className="flex gap-2">
+            <button
+              onClick={handleSkip}
+              className="flex-1 py-3 text-slate-500 hover:text-slate-300 text-sm border border-slate-800 hover:border-slate-600 rounded-xl transition-colors"
+            >
+              わからない
+            </button>
+            <button
+              onClick={async () => {
+                await saveSpellResults(questions.slice(0, qIdx + 1), correctIdsRef.current)
+                onHome()
+              }}
+              className="flex-1 py-3 text-slate-500 hover:text-slate-300 text-sm border border-slate-800 hover:border-slate-600 rounded-xl transition-colors"
+            >
+              ホームへ戻る
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* 不正解時のみ手動「次へ」ボタン（正解時は自動進行） */}
+            {status === 'incorrect' && (
+              <button
+                onClick={() => advanceTo(qIdx + 1)}
+                className="w-full py-5 text-xl font-bold bg-blue-600 hover:bg-blue-500 rounded-2xl transition-colors active:scale-95"
+              >
+                {qIdx + 1 >= questions.length ? '結果を見る →' : '次へ →'}
+              </button>
+            )}
+            {status === 'correct' && (
+              <div className="text-center text-slate-500 text-sm animate-pulse">次の問題へ移動中...</div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ---- スペル入力：完了画面 ----
+function SpellSummaryScreen({ score, total, wrongAnswers, earnedPoints = 0, onRetry, onHome }) {
+  const [detailWord, setDetailWord] = useState(null)
+  const [detailWords, setDetailWords] = useState([])
+
+  if (detailWord) {
+    return (
+      <WordDetailScreen
+        word={detailWord}
+        sessionWords={detailWords}
+        initialIndex={detailWords.findIndex(w => w.id === detailWord.id)}
+        backLabel="結果に戻る"
+        backAsLink={true}
+        onBack={() => setDetailWord(null)}
+      />
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-white flex flex-col px-4 py-8">
+      <div className="max-w-[600px] mx-auto w-full">
+        <h1 className="text-2xl font-bold text-white mb-1">お疲れ様でした！</h1>
+        <p className="text-4xl font-black text-green-400 mb-4">{total}問中 {score}問 正解</p>
+
+        {earnedPoints > 0 && (
+          <div className="mb-6 px-5 py-3 bg-yellow-500/20 border border-yellow-500/50 rounded-2xl">
+            <p className="text-yellow-300 font-bold text-lg">🪙 +{earnedPoints}pt 獲得！</p>
+            <p className="text-yellow-500/80 text-xs mt-0.5">今日の初回クリア達成</p>
+          </div>
+        )}
+
+        {wrongAnswers.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex-1 h-px bg-slate-700" />
+              <span className="text-slate-400 text-sm">間違えた単語（タップで解説）</span>
+              <div className="flex-1 h-px bg-slate-700" />
+            </div>
+            <div className="flex flex-col gap-2">
+              {wrongAnswers.map((w, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    if (!w.wordObj) return
+                    const allObjs = wrongAnswers.map(a => a.wordObj).filter(Boolean)
+                    setDetailWords(allObjs)
+                    setDetailWord(w.wordObj)
+                  }}
+                  className={`w-full text-left bg-slate-800 rounded-xl px-4 py-3 transition-colors ${w.wordObj ? 'hover:bg-slate-700 active:bg-slate-600' : ''}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-mono font-bold text-white">{w.word}</span>
+                      {w.inflected && w.inflected !== w.word && (
+                        <span className="text-slate-400 font-normal text-sm ml-1">（{w.inflected}）</span>
+                      )}
+                    </div>
+                    {w.wordObj && <span className="text-slate-500 text-xs">解説 →</span>}
+                  </div>
+                  {w.yourInput ? (
+                    <div className="text-slate-400 text-sm mt-0.5">あなたの入力: <span className="font-mono">{w.yourInput}</span></div>
+                  ) : (
+                    <div className="text-slate-500 text-sm mt-0.5">スキップ</div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={onRetry}
+            className="flex-1 py-5 text-lg font-bold bg-green-600 hover:bg-green-500 rounded-2xl transition-colors active:scale-95"
+          >
+            もう一度
+          </button>
+          <button
+            onClick={onHome}
+            className="flex-1 py-5 text-lg font-bold bg-slate-700 hover:bg-slate-600 rounded-2xl transition-colors active:scale-95"
+          >
+            ホームへ戻る
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -499,10 +1198,29 @@ function ReviewSlideshow({ words, onHome }) {
   )
 }
 
+// デイリーポイント判定（今日まだ取得していなければ 1、取得済みなら 0）
+async function claimDailyPoint(storageKey, userId) {
+  const today = new Date().toISOString().slice(0, 10)
+  const localKey = `${storageKey}_${today}`
+  // ローカルに記録済みならスキップ
+  if (localStorage.getItem(localKey)) return 0
+  // サーバー確認（ログイン中のみ）：別デバイスで済ませた場合も0点
+  if (userId) {
+    const mode = storageKey === 'vocaleap_practice_daily' ? 'practice' : 'spell'
+    const completions = await fetchTodayModeCompletions(userId)
+    if (completions.includes(mode)) {
+      localStorage.setItem(localKey, '1')
+      return 0
+    }
+  }
+  localStorage.setItem(localKey, '1')
+  return 1
+}
+
 // ---- メイン ----
 export default function DailyQuiz() {
   const navigate = useNavigate()
-  const [phase, setPhase] = useState('select')
+  const [phase, setPhase] = useState('mode-select')
   const [questions, setQuestions] = useState([])
   const [score, setScore] = useState(0)
   const [reviewWords, setReviewWords] = useState([])
@@ -510,7 +1228,36 @@ export default function DailyQuiz() {
   const [streakToast, setStreakToast] = useState(null)
   const [showSessionOverlay, setShowSessionOverlay] = useState(false)
   const [maskMode, setMaskMode] = useState(false)
-  const { recordStudy } = useUserStats()
+  const [spellQuestions, setSpellQuestions] = useState([])
+  const [spellResult, setSpellResult] = useState({ score: 0, total: 0, wrongAnswers: [] })
+  const [earnedPoints, setEarnedPoints] = useState(0)
+  const preStreakPhaseRef = useRef('result')
+  const { recordDailyQuiz } = useUserStats()
+
+  async function handleSpellStart(parts) {
+    const qs = await fetchSpellQuestions(parts)
+    if (qs.length === 0) return
+    setSpellQuestions(qs)
+    setPhase('spell-playing')
+  }
+
+  async function handleSpellFinish(res) {
+    setSpellResult({ score: res.score, total: res.total ?? SPELL_QUESTIONS, wrongAnswers: res.wrongAnswers ?? [] })
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id ?? null
+    const pts = await claimDailyPoint('vocaleap_spell_daily', userId)
+    setEarnedPoints(pts)
+    const result = await recordDailyQuiz(pts)
+    if (result.streakUpdated) setStreakToast(result.currentStreak)
+    db.dailyQuizHistory.add({ date: new Date() }).catch(() => {})
+    if (userId) {
+      syncDailyQuizHistory(userId, new Date())
+      if (pts > 0) syncDailyModeCompletion(userId, new Date(), 'spell')
+    }
+    preStreakPhaseRef.current = 'spell-result'
+    setShowSessionOverlay(true)
+    setPhase('spell-result')
+  }
 
   async function handleStart(parts, mask = false) {
     setMaskMode(mask)
@@ -568,18 +1315,59 @@ export default function DailyQuiz() {
   async function handleFinish(res) {
     setScore(res.score)
     setReviewWords(res.words ?? [])
-    const result = await recordStudy()
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id ?? null
+    const pts = await claimDailyPoint('vocaleap_practice_daily', userId)
+    setEarnedPoints(pts)
+    const result = await recordDailyQuiz(pts)
     if (result.streakUpdated) setStreakToast(result.currentStreak)
     db.dailyQuizHistory.add({ date: new Date() }).catch(() => {})
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.id) syncDailyQuizHistory(session.user.id, new Date())
-    })
+    if (userId) {
+      syncDailyQuizHistory(userId, new Date())
+      if (pts > 0) syncDailyModeCompletion(userId, new Date(), 'practice')
+    }
+    preStreakPhaseRef.current = 'result'
     setShowSessionOverlay(true)
     setPhase('result')
   }
 
+  if (phase === 'mode-select') {
+    return <ModeSelect onSelectMode={(mode) => setPhase(mode === 'spell' ? 'spell-select' : 'select')} onBack={() => navigate('/')} />
+  }
+  if (phase === 'spell-select') {
+    return <SpellPartSelect onStart={handleSpellStart} onBack={() => setPhase('mode-select')} />
+  }
+  if (phase === 'spell-playing') {
+    return <SpellQuizScreen questions={spellQuestions} onFinish={handleSpellFinish} onHome={() => navigate('/')} />
+  }
+  if (phase === 'spell-result') {
+    return (
+      <>
+        {showSessionOverlay && (
+          <SessionCompleteOverlay
+            label="セッション完了！"
+            onDone={() => {
+              setShowSessionOverlay(false)
+              if (streakToast !== null) setPhase('spell-streak')
+            }}
+          />
+        )}
+        <SpellSummaryScreen
+          score={spellResult.score}
+          total={spellResult.total}
+          wrongAnswers={spellResult.wrongAnswers}
+          earnedPoints={earnedPoints}
+          onRetry={() => handleSpellStart(spellQuestions.map(q => q.leapPart).filter((v, i, a) => a.indexOf(v) === i))}
+          onHome={() => navigate('/')}
+        />
+      </>
+    )
+  }
+  if (phase === 'spell-streak') {
+    return <StreakToast streak={streakToast} onDone={() => { setStreakToast(null); setPhase('spell-result') }} />
+  }
   if (phase === 'select') {
-    return <PartSelect onStart={handleStart} />
+    return <PartSelect onStart={handleStart} onBack={() => setPhase('mode-select')} />
   }
   if (phase === 'playing') {
     return <QuizScreen questions={questions} onFinish={handleFinish} onHome={() => navigate('/')} maskMode={maskMode} />
@@ -601,6 +1389,7 @@ export default function DailyQuiz() {
         )}
         <ResultScreen
           score={score}
+          earnedPoints={earnedPoints}
           onReview={() => setPhase('review')}
           onHome={() => navigate('/')}
         />
@@ -608,7 +1397,7 @@ export default function DailyQuiz() {
     )
   }
   if (phase === 'streak') {
-    return <StreakToast streak={streakToast} onDone={() => { setStreakToast(null); setPhase('result') }} />
+    return <StreakToast streak={streakToast} onDone={() => { setStreakToast(null); setPhase(preStreakPhaseRef.current) }} />
   }
   if (phase === 'review') {
     return <ReviewSlideshow words={reviewWords} onHome={() => navigate('/')} />

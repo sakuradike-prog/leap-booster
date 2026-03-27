@@ -1,5 +1,15 @@
 import { supabase } from '../lib/supabase'
 
+// ── 週次ヘルパー（supabaseSync内で使用） ────────────────────────────────────
+function getThisMonday() {
+  const d = new Date()
+  const day = d.getDay() // 0=Sun, 1=Mon, ...
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
 // ローカル（camelCase）→ Supabase（snake_case）変換
 function toRemote(userId, stats) {
   const toDateStr = (v) => {
@@ -19,6 +29,9 @@ function toRemote(userId, stats) {
     freeze_count: stats.freezeCount ?? 0,
     today_points: stats.todayPoints ?? 0,
     today_points_date: toDateStr(stats.todayPointsDate),
+    week_points: stats.weekPoints ?? 0,
+    week_start_date: stats.weekStartDate ?? null,
+    consecutive_correct: stats.consecutiveCorrect ?? 0,
     updated_at: new Date().toISOString(),
   }
 }
@@ -38,6 +51,9 @@ export function fromRemote(remote) {
     freezeCount: remote.freeze_count ?? 0,
     todayPoints: remote.today_points ?? 0,
     todayPointsDate: toDate(remote.today_points_date),
+    weekPoints: remote.week_points ?? 0,
+    weekStartDate: remote.week_start_date ?? null,
+    consecutiveCorrect: remote.consecutive_correct ?? 0,
   }
 }
 
@@ -209,9 +225,11 @@ export async function syncCard(userId, leapNumber, word, card) {
       user_id: userId,
       leap_number: leapNumber,
       word: word ?? '',
-      study_count:     card.studyCount     ?? 0,
-      correct_count:   card.correctCount   ?? 0,
-      incorrect_count: card.incorrectCount ?? 0,
+      study_count:          card.studyCount          ?? 0,
+      correct_count:        card.correctCount        ?? 0,
+      incorrect_count:      card.incorrectCount      ?? 0,
+      spell_correct_count:  card.spellCorrectCount   ?? 0,
+      spell_incorrect_count: card.spellIncorrectCount ?? 0,
       last_reviewed: card.lastReviewed ? new Date(card.lastReviewed).toISOString() : null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,leap_number' })
@@ -253,9 +271,11 @@ export async function mergeCards(userId, db) {
         if (!wordId) continue
         await db.cards.add({
           wordId,
-          studyCount:     rc.study_count     ?? 0,
-          correctCount:   rc.correct_count   ?? 0,
-          incorrectCount: rc.incorrect_count ?? 0,
+          studyCount:           rc.study_count           ?? 0,
+          correctCount:         rc.correct_count         ?? 0,
+          incorrectCount:       rc.incorrect_count       ?? 0,
+          spellCorrectCount:    rc.spell_correct_count   ?? 0,
+          spellIncorrectCount:  rc.spell_incorrect_count ?? 0,
           lastReviewed: rc.last_reviewed ? new Date(rc.last_reviewed) : null,
         }).catch(() => {})
         added++
@@ -264,6 +284,8 @@ export async function mergeCards(userId, db) {
         if ((rc.study_count ?? 0) > (lc.studyCount ?? 0)) upd.studyCount = rc.study_count
         if ((rc.correct_count ?? 0) > (lc.correctCount ?? 0)) upd.correctCount = rc.correct_count
         if ((rc.incorrect_count ?? 0) > (lc.incorrectCount ?? 0)) upd.incorrectCount = rc.incorrect_count
+        if ((rc.spell_correct_count ?? 0) > (lc.spellCorrectCount ?? 0)) upd.spellCorrectCount = rc.spell_correct_count
+        if ((rc.spell_incorrect_count ?? 0) > (lc.spellIncorrectCount ?? 0)) upd.spellIncorrectCount = rc.spell_incorrect_count
         const rDate = rc.last_reviewed ? new Date(rc.last_reviewed) : null
         const lDate = lc.lastReviewed  ? new Date(lc.lastReviewed)  : null
         if (rDate && (!lDate || rDate > lDate)) upd.lastReviewed = rDate
@@ -282,9 +304,11 @@ export async function mergeCards(userId, db) {
         user_id: userId,
         leap_number: ln,
         word: wordIdToText[c.wordId] ?? '',
-        study_count:     c.studyCount     ?? 0,
-        correct_count:   c.correctCount   ?? 0,
-        incorrect_count: c.incorrectCount ?? 0,
+        study_count:           c.studyCount          ?? 0,
+        correct_count:         c.correctCount        ?? 0,
+        incorrect_count:       c.incorrectCount      ?? 0,
+        spell_correct_count:   c.spellCorrectCount   ?? 0,
+        spell_incorrect_count: c.spellIncorrectCount ?? 0,
         last_reviewed: c.lastReviewed ? new Date(c.lastReviewed).toISOString() : null,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,leap_number' })
@@ -424,6 +448,35 @@ export async function mergeDailyQuizHistory(userId, db) {
   } catch (err) { console.warn('[Vocaleap] mergeDailyQuizHistory例外:', err) }
 }
 
+// ── DAILY MODE COMPLETIONS ────────────────────────────────────────────────────
+
+/** 今日の出題モード完了を1件 upsert（デバイス間共有用） */
+export async function syncDailyModeCompletion(userId, date, mode) {
+  if (!userId) return
+  try {
+    const { error } = await supabase.from('daily_mode_completions').upsert(
+      { user_id: userId, date: toLocalDateStr(date), mode },
+      { onConflict: 'user_id,date,mode' }
+    )
+    if (error) console.warn('[Vocaleap] daily_mode_completions sync失敗:', error.message)
+  } catch (err) { console.warn('[Vocaleap] daily_mode_completions sync例外:', err) }
+}
+
+/** 今日完了済みのモード一覧をサーバーから取得 */
+export async function fetchTodayModeCompletions(userId) {
+  if (!userId) return []
+  try {
+    const today = toLocalDateStr(new Date())
+    const { data, error } = await supabase
+      .from('daily_mode_completions')
+      .select('mode')
+      .eq('user_id', userId)
+      .eq('date', today)
+    if (error || !data) return []
+    return data.map(r => r.mode)
+  } catch { return [] }
+}
+
 /** session_log 1件をSupabaseに送る（fire-and-forget用） */
 export async function syncSessionLog(userId, session) {
   if (!userId) return
@@ -516,6 +569,77 @@ export async function fetchClearTimeRankings() {
       })
   } catch (err) {
     console.warn('[Vocaleap] fetchClearTimeRankings例外:', err)
+    return []
+  }
+}
+
+/** 捕獲単語数ランキング取得 */
+export async function fetchCaptureRankings() {
+  try {
+    // 1. Count captured_words per user
+    const { data: captures } = await supabase
+      .from('captured_words')
+      .select('user_id')
+    if (!captures) return []
+
+    // Count per user
+    const countMap = {}
+    for (const r of captures) {
+      countMap[r.user_id] = (countMap[r.user_id] ?? 0) + 1
+    }
+
+    // 2. Get display names from user_stats
+    const uids = Object.keys(countMap)
+    if (uids.length === 0) return []
+    const { data: stats } = await supabase
+      .from('user_stats')
+      .select('user_id, display_name')
+      .in('user_id', uids)
+
+    const nameMap = Object.fromEntries((stats ?? []).map(s => [s.user_id, s.display_name]))
+
+    return Object.entries(countMap)
+      .map(([uid, count]) => ({ user_id: uid, display_name: nameMap[uid] ?? '---', capture_count: count }))
+      .sort((a, b) => b.capture_count - a.capture_count)
+  } catch (err) {
+    console.warn('[Vocaleap] fetchCaptureRankings例外:', err)
+    return []
+  }
+}
+
+/** 今週のポイントランキング取得 */
+export async function fetchWeekPointsRankings() {
+  try {
+    const thisMonday = toLocalDateStr(getThisMonday())
+
+    const { data } = await supabase
+      .from('user_stats')
+      .select('user_id, display_name, week_points, week_start_date')
+      .gt('week_points', 0)
+
+    if (!data) return []
+
+    return data
+      .filter(r => r.week_start_date === thisMonday)
+      .map(r => ({ user_id: r.user_id, display_name: r.display_name ?? '---', week_points: r.week_points ?? 0 }))
+      .sort((a, b) => b.week_points - a.week_points)
+  } catch (err) {
+    console.warn('[Vocaleap] fetchWeekPointsRankings例外:', err)
+    return []
+  }
+}
+
+/** 連続正解数ランキング取得 */
+export async function fetchConsecutiveRankings() {
+  try {
+    const { data, error } = await supabase
+      .from('user_stats')
+      .select('user_id, display_name, consecutive_correct')
+      .gt('consecutive_correct', 0)
+    if (error) { console.warn('[Vocaleap] fetchConsecutiveRankings失敗:', error.message); return [] }
+    return (data ?? []).sort((a, b) => b.consecutive_correct - a.consecutive_correct)
+  } catch (err) {
+    console.warn('[Vocaleap] fetchConsecutiveRankings例外:', err)
     return []
   }
 }

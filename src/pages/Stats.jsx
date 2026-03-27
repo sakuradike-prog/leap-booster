@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../db/database'
 import { supabase } from '../lib/supabase'
 import WordDetailScreen from '../components/WordDetailScreen'
+import WordBadges from '../components/WordBadges'
 
 // 日付を "YYYY/M/D" 形式に
 function fmtDate(date) {
@@ -44,6 +45,8 @@ export default function Stats() {
   const [weakWords, setWeakWords]               = useState([])
   const [studyRanking, setStudyRanking]         = useState([])
   const [loading, setLoading]                   = useState(true)
+  const [capturedSet, setCapturedSet]           = useState(new Set())
+  const [checkedSet, setCheckedSet]             = useState(new Set())
   // { word, sessionWords, sessionIndex } | null
   const [wordContext, setWordContext]           = useState(null)
   const scrollPosRef = useRef(0)
@@ -65,6 +68,14 @@ export default function Stats() {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
       const uid = session?.user?.id
+
+      // 捕獲済み・チェック済みセット（IndexedDBから）
+      const [capList, chkList] = await Promise.all([
+        db.captured_words.toArray(),
+        db.checked_words.toArray(),
+      ])
+      setCapturedSet(new Set(capList.map(c => c.leapNumber)))
+      setCheckedSet(new Set(chkList.map(c => c.leapNumber)))
 
       if (uid) {
         // ── ログイン中：Supabaseから直接読む（全デバイスで同じデータを表示） ──
@@ -161,7 +172,11 @@ export default function Stats() {
 
     load()
     window.addEventListener('vocaleap:synced', load)
-    return () => window.removeEventListener('vocaleap:synced', load)
+    window.addEventListener('vocaleap:checked', load)
+    return () => {
+      window.removeEventListener('vocaleap:synced', load)
+      window.removeEventListener('vocaleap:checked', load)
+    }
   }, [])
 
   if (wordContext) {
@@ -234,10 +249,11 @@ export default function Stats() {
                       onClick={() => handleSelectWord(word, weakWords.map(e => e.word), i)}
                       className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-4 py-3 text-left active:scale-95 transition-all"
                     >
-                      <span className="text-slate-600 text-sm w-5 text-right">{i + 1}</span>
-                      <span className="flex-1 font-bold text-white text-sm truncate">{word.word}</span>
-                      <span className="text-slate-400 text-sm truncate max-w-24">{word.meaning}</span>
-                      <span className="text-red-400 text-sm font-bold tabular-nums">
+                      <span className="text-slate-600 text-sm w-5 text-right flex-shrink-0">{i + 1}</span>
+                      <span className="font-bold text-white text-sm truncate">{word.word}</span>
+                      <WordBadges isCaptured={capturedSet.has(word.leapNumber)} isChecked={checkedSet.has(word.leapNumber)} />
+                      <span className="text-slate-400 text-sm truncate max-w-24 ml-auto">{word.meaning}</span>
+                      <span className="text-red-400 text-sm font-bold tabular-nums flex-shrink-0">
                         ×{card.incorrectCount}
                       </span>
                     </button>
@@ -259,10 +275,11 @@ export default function Stats() {
                       onClick={() => handleSelectWord(word, studyRanking.map(e => e.word), i)}
                       className="w-full flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-4 py-3 text-left active:scale-95 transition-all"
                     >
-                      <span className="text-slate-600 text-sm w-5 text-right">{i + 1}</span>
-                      <span className="flex-1 font-bold text-white text-sm truncate">{word.word}</span>
-                      <span className="text-slate-400 text-sm truncate max-w-24">{word.meaning}</span>
-                      <span className="text-amber-400 text-sm font-bold tabular-nums">
+                      <span className="text-slate-600 text-sm w-5 text-right flex-shrink-0">{i + 1}</span>
+                      <span className="font-bold text-white text-sm truncate">{word.word}</span>
+                      <WordBadges isCaptured={capturedSet.has(word.leapNumber)} isChecked={checkedSet.has(word.leapNumber)} />
+                      <span className="text-slate-400 text-sm truncate max-w-24 ml-auto">{word.meaning}</span>
+                      <span className="text-amber-400 text-sm font-bold tabular-nums flex-shrink-0">
                         {(card.studyCount ?? 0).toLocaleString()}回
                       </span>
                     </button>

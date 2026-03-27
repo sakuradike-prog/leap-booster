@@ -1170,7 +1170,7 @@ export default function Challenge() {
   const [timeoutEarnedPoints, setTimeoutEarnedPoints] = useState(0)
   const [timeoutCapturedCount, setTimeoutCapturedCount] = useState(0)
   const startTimeRef = useRef(null)
-  const { stats, recordChallengeClear, recordStudy, addPoints } = useUserStats()
+  const { stats, recordChallengeClear, recordChallengeStart, recordStudy, addPoints } = useUserStats()
   const navigate = useNavigate()
 
   // 今日クリア済みか確認（Supabase同期済みの stats を使用）
@@ -1218,6 +1218,9 @@ export default function Challenge() {
     setSelectedParts(parts)
     setWords(questions)
     startTimeRef.current = Date.now()
+    // 開始時点で「今日のチャレンジ消費済み」にする（途中断念・失敗でも再挑戦不可）
+    await recordChallengeStart()
+    setAlreadyDone(true)
     setPhase('playing')
   }
 

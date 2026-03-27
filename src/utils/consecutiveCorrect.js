@@ -29,7 +29,7 @@ export function resetConsecutiveCorrect() {
   syncToServer(0)
 }
 
-/** ログイン時・フォアグラウンド復帰時：サーバーの値でローカルを上書き */
+/** ログイン時・フォアグラウンド復帰時：ローカルとサーバーの大きい方を採用 */
 export async function mergeConsecutiveCorrect(userId) {
   if (!userId) return
   try {
@@ -39,7 +39,11 @@ export async function mergeConsecutiveCorrect(userId) {
       .eq('user_id', userId)
       .single()
     if (error || !data) return
+    const localCount = getConsecutiveCorrect()
     const serverCount = data.consecutive_correct ?? 0
-    localStorage.setItem(KEY, String(serverCount))
+    const merged = Math.max(localCount, serverCount)
+    localStorage.setItem(KEY, String(merged))
+    // ローカルが大きかった場合はサーバーも更新
+    if (localCount > serverCount) syncToServer(merged)
   } catch {}
 }

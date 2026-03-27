@@ -26,7 +26,7 @@ export default function MessagesPage() {
     const { data, error } = await supabase
       .from('messages')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
       .limit(100)
     if (error || !data) return
     setTeacherMsgs(data.filter(m => m.role === 'teacher'))

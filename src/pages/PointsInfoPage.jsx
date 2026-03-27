@@ -76,14 +76,53 @@ export default function PointsInfoPage() {
         </div>
       </div>
 
-      {/* ルール説明 */}
+      {/* Daily Quiz ルール */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl px-5 py-5 text-sm mb-4">
+        <h2 className="font-bold text-slate-200 mb-4 text-base">💡 Daily Quiz のポイント獲得ルール</h2>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between py-2 border-b border-slate-800">
+            <div>
+              <div className="text-slate-200 font-medium">4択練習（初回クリア）</div>
+              <div className="text-slate-500 text-xs mt-0.5">1日1回・セッション終了時に獲得</div>
+            </div>
+            <div className="text-yellow-400 font-black text-lg">+1pt</div>
+          </div>
+          <div className="flex items-center justify-between py-2 border-b border-slate-800">
+            <div>
+              <div className="text-slate-200 font-medium">スペル入力（初回クリア）</div>
+              <div className="text-slate-500 text-xs mt-0.5">1日1回・セッション終了時に獲得</div>
+            </div>
+            <div className="text-yellow-400 font-black text-lg">+1pt</div>
+          </div>
+          <div className="flex items-center justify-between py-2 border-b border-slate-800">
+            <div>
+              <div className="text-slate-400 font-medium">仕分け練習（初回クリア）</div>
+              <div className="text-slate-500 text-xs mt-0.5">近日公開</div>
+            </div>
+            <div className="text-slate-600 font-black text-lg">+1pt</div>
+          </div>
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <div className="text-green-300 font-medium">全練習コンプリートボーナス</div>
+              <div className="text-slate-500 text-xs mt-0.5">3種類すべてを1日1回ずつこなす</div>
+            </div>
+            <div className="text-green-400 font-black text-lg">+10pt</div>
+          </div>
+        </div>
+        <div className="mt-4 px-4 py-3 bg-slate-950/60 border border-slate-700 rounded-xl text-xs text-slate-500">
+          <span className="text-slate-400 font-bold">最大ポイント例（1日）</span><br />
+          4択 + スペル + 仕分け + ボーナス = 1+1+1+10 = <span className="text-yellow-400 font-bold">13pt</span>
+        </div>
+      </div>
+
+      {/* 30問チャレンジ ルール */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl px-5 py-5 text-sm">
-        <h2 className="font-bold text-slate-200 mb-4 text-base">ポイントのルール</h2>
+        <h2 className="font-bold text-slate-200 mb-4 text-base">⚡ 30問チャレンジのポイント獲得ルール</h2>
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between py-2 border-b border-slate-800">
             <div>
               <div className="text-slate-200 font-medium">通常単語 1問正解</div>
-              <div className="text-slate-500 text-xs mt-0.5">30問チャレンジで正解した通常の単語</div>
+              <div className="text-slate-500 text-xs mt-0.5">チャレンジで正解した通常の単語</div>
             </div>
             <div className="text-blue-400 font-black text-lg">+1pt</div>
           </div>
@@ -102,11 +141,10 @@ export default function PointsInfoPage() {
             <div className="text-purple-400 font-black text-lg">+15pt</div>
           </div>
         </div>
-      </div>
-
-      <div className="mt-4 px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-xs text-slate-500">
-        <span className="text-slate-400 font-bold">最大ポイント例</span><br />
-        αあり・全問正解・全問捕獲済みの場合: 30×2 + 15 = <span className="text-amber-400 font-bold">75pt</span>
+        <div className="mt-4 px-4 py-3 bg-slate-950/60 border border-slate-700 rounded-xl text-xs text-slate-500">
+          <span className="text-slate-400 font-bold">最大ポイント例（1回）</span><br />
+          αあり・全問正解・全問捕獲済みの場合: 30×2 + 15 = <span className="text-amber-400 font-bold">75pt</span>
+        </div>
       </div>
     </div>
     </div>
