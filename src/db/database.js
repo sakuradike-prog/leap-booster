@@ -71,3 +71,19 @@ db.version(11).stores({
 }).upgrade(() => {
   // no-op: 非インデックスフィールドなのでDBスキーマ変更不要
 })
+
+db.version(12).stores({
+  // cards に sortKnownCount / sortUnknownCount を追加（15単語仕分け練習モード用）
+  // スキーマ変更なし: 既存データは undefined → ?? 0 で扱う
+  cards: '++id, wordId, lastReviewed',
+}).upgrade(() => {
+  // no-op: 非インデックスフィールドなのでDBスキーマ変更不要
+})
+
+db.version(13).stores({
+  // cards に sortKnownStreak / sortLastKnownAt を追加（仕分け練習クールタイム用）
+  // スキーマ変更なし: 既存データは undefined → ?? 0 で扱う
+  cards: '++id, wordId, lastReviewed',
+}).upgrade(() => {
+  // no-op: 非インデックスフィールドなのでDBスキーマ変更不要
+})

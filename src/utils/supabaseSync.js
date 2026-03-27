@@ -230,6 +230,10 @@ export async function syncCard(userId, leapNumber, word, card) {
       incorrect_count:      card.incorrectCount      ?? 0,
       spell_correct_count:  card.spellCorrectCount   ?? 0,
       spell_incorrect_count: card.spellIncorrectCount ?? 0,
+      sort_known_count:     card.sortKnownCount      ?? 0,
+      sort_unknown_count:   card.sortUnknownCount    ?? 0,
+      sort_known_streak:    card.sortKnownStreak     ?? 0,
+      sort_last_known_at:   card.sortLastKnownAt ? new Date(card.sortLastKnownAt).toISOString() : null,
       last_reviewed: card.lastReviewed ? new Date(card.lastReviewed).toISOString() : null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,leap_number' })
@@ -276,6 +280,10 @@ export async function mergeCards(userId, db) {
           incorrectCount:       rc.incorrect_count       ?? 0,
           spellCorrectCount:    rc.spell_correct_count   ?? 0,
           spellIncorrectCount:  rc.spell_incorrect_count ?? 0,
+          sortKnownCount:       rc.sort_known_count      ?? 0,
+          sortUnknownCount:     rc.sort_unknown_count    ?? 0,
+          sortKnownStreak:      rc.sort_known_streak     ?? 0,
+          sortLastKnownAt:      rc.sort_last_known_at ? new Date(rc.sort_last_known_at) : null,
           lastReviewed: rc.last_reviewed ? new Date(rc.last_reviewed) : null,
         }).catch(() => {})
         added++
@@ -286,6 +294,10 @@ export async function mergeCards(userId, db) {
         if ((rc.incorrect_count ?? 0) > (lc.incorrectCount ?? 0)) upd.incorrectCount = rc.incorrect_count
         if ((rc.spell_correct_count ?? 0) > (lc.spellCorrectCount ?? 0)) upd.spellCorrectCount = rc.spell_correct_count
         if ((rc.spell_incorrect_count ?? 0) > (lc.spellIncorrectCount ?? 0)) upd.spellIncorrectCount = rc.spell_incorrect_count
+        if ((rc.sort_known_count ?? 0) > (lc.sortKnownCount ?? 0)) upd.sortKnownCount = rc.sort_known_count
+        if ((rc.sort_unknown_count ?? 0) > (lc.sortUnknownCount ?? 0)) upd.sortUnknownCount = rc.sort_unknown_count
+        if ((rc.sort_known_streak ?? 0) > (lc.sortKnownStreak ?? 0)) upd.sortKnownStreak = rc.sort_known_streak
+        if (rc.sort_last_known_at && (!lc.sortLastKnownAt || new Date(rc.sort_last_known_at) > new Date(lc.sortLastKnownAt))) upd.sortLastKnownAt = new Date(rc.sort_last_known_at)
         const rDate = rc.last_reviewed ? new Date(rc.last_reviewed) : null
         const lDate = lc.lastReviewed  ? new Date(lc.lastReviewed)  : null
         if (rDate && (!lDate || rDate > lDate)) upd.lastReviewed = rDate
@@ -309,6 +321,10 @@ export async function mergeCards(userId, db) {
         incorrect_count:       c.incorrectCount      ?? 0,
         spell_correct_count:   c.spellCorrectCount   ?? 0,
         spell_incorrect_count: c.spellIncorrectCount ?? 0,
+        sort_known_count:      c.sortKnownCount      ?? 0,
+        sort_unknown_count:    c.sortUnknownCount    ?? 0,
+        sort_known_streak:     c.sortKnownStreak     ?? 0,
+        sort_last_known_at:    c.sortLastKnownAt ? new Date(c.sortLastKnownAt).toISOString() : null,
         last_reviewed: c.lastReviewed ? new Date(c.lastReviewed).toISOString() : null,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,leap_number' })

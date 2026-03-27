@@ -23,6 +23,48 @@ const ALL_PARTS  = ['Part1', 'Part2', 'Part3', 'Part4', 'α']
 const QUESTIONS = 10
 const SPELL_QUESTIONS = 5
 const SPELL_LAST_PART_KEY = 'vocaleap_spell_last_part'
+const SORT_QUESTIONS = 15
+
+async function fetchSortQuestions(excludeLeapNums = new Set()) {
+  const today = new Date()
+  const [allCards, allWords, checkedEntries, capturedEntries] = await Promise.all([
+    db.cards.toArray(),
+    db.words.filter(sourceBookFilter).toArray(),
+    db.checked_words.toArray(),
+    db.captured_words.toArray(),
+  ])
+  const wordById = {}
+  for (const w of allWords) wordById[w.id] = w
+  const checkedNums = new Set(checkedEntries.map(c => c.leapNumber))
+  const capturedNums = new Set(capturedEntries.map(c => c.leapNumber))
+
+  const candidates = []
+  for (const card of allCards) {
+    const word = wordById[card.wordId]
+    if (!word) continue
+    if ((card.studyCount ?? 0) < 1) continue
+    if (excludeLeapNums.has(word.leapNumber)) continue
+    // クールタイム除外（連続わかった回数に応じて出題しない期間）
+    const knownStreak = card.sortKnownStreak ?? 0
+    if (knownStreak > 0 && card.sortLastKnownAt) {
+      const daysSinceKnown = (today - new Date(card.sortLastKnownAt)) / (1000 * 60 * 60 * 24)
+      const coolDays = [0, 3, 7, 14, 30][Math.min(knownStreak, 4)]
+      if (daysSinceKnown < coolDays) continue
+    }
+    const studyCount = card.studyCount ?? 0
+    const incorrectRate = studyCount > 0 ? (card.incorrectCount ?? 0) / studyCount : 0
+    const lastReviewed = card.lastReviewed ? new Date(card.lastReviewed) : null
+    const daysSince = lastReviewed ? (today - lastReviewed) / (1000 * 60 * 60 * 24) : 30
+    const score = (incorrectRate * 3)
+      + (daysSince * 0.5)
+      - (studyCount * 0.2)
+      + (checkedNums.has(word.leapNumber) ? 5 : 0)
+      + (capturedNums.has(word.leapNumber) ? 1 : 0)
+    candidates.push({ word, score })
+  }
+  candidates.sort((a, b) => b.score - a.score)
+  return candidates.slice(0, SORT_QUESTIONS).map(c => c.word)
+}
 
 function getQuizTimerSecs() {
   const v = parseInt(localStorage.getItem('quizTimerSecs'), 10)
@@ -47,6 +89,12 @@ function ModeSelect({ onSelectMode, onBack }) {
   const [spellCompleted, setSpellCompleted] = useState(
     !!localStorage.getItem(`vocaleap_spell_daily_${today}`)
   )
+  const [sortCompleted, setSortCompleted] = useState(
+    !!localStorage.getItem(`vocaleap_sorting_daily_${today}`)
+  )
+  const [completeBonusEarned, setCompleteBonusEarned] = useState(
+    !!localStorage.getItem(`vocaleap_complete_bonus_daily_${today}`)
+  )
 
   useEffect(() => {
     async function checkServer() {
@@ -61,6 +109,14 @@ function ModeSelect({ onSelectMode, onBack }) {
       if (completions.includes('spell')) {
         localStorage.setItem(`vocaleap_spell_daily_${today}`, '1')
         setSpellCompleted(true)
+      }
+      if (completions.includes('sort')) {
+        localStorage.setItem(`vocaleap_sorting_daily_${today}`, '1')
+        setSortCompleted(true)
+      }
+      if (completions.includes('complete_bonus')) {
+        localStorage.setItem(`vocaleap_complete_bonus_daily_${today}`, '1')
+        setCompleteBonusEarned(true)
       }
     }
     checkServer()
@@ -103,16 +159,24 @@ function ModeSelect({ onSelectMode, onBack }) {
           </div>
         </button>
 
-        {/* 仕分け練習 - 近日公開 */}
-        <button disabled className="w-full bg-slate-900 border border-slate-700 rounded-2xl p-4 text-left opacity-50 cursor-not-allowed">
+        {/* 仕分け練習 */}
+        <button
+          onClick={() => onSelectMode('sort')}
+          className="w-full bg-slate-800 border border-slate-600 rounded-2xl p-4 text-left hover:border-amber-500 transition-colors"
+        >
           <div className="flex items-center gap-3">
             <span className="text-2xl">🃏</span>
             <div className="flex-1">
               <div className="flex items-center justify-between">
-                <div className="text-slate-400 font-bold">仕分け練習</div>
-                <span className="text-xs text-amber-400 border border-amber-400 rounded px-1.5 py-0.5">近日公開</span>
+                <div className="text-white font-bold">仕分け練習</div>
+                {sortCompleted && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-green-400 border border-green-400 rounded px-1.5 py-0.5">本日学習済み</span>
+                    <img src="/badge.png" alt="" style={{ width: 24, height: 24 }} />
+                  </div>
+                )}
               </div>
-              <div className="text-slate-600 text-sm">わかる/わからないに仕分け</div>
+              <div className="text-slate-400 text-sm">学習履歴から15語を自動選出・わかる/わからない仕分け</div>
             </div>
           </div>
         </button>
@@ -138,6 +202,16 @@ function ModeSelect({ onSelectMode, onBack }) {
             </div>
           </div>
         </button>
+
+        {completeBonusEarned && (
+          <div className="w-full flex items-center gap-2 px-4 py-3 bg-amber-900/30 border border-amber-500/50 rounded-2xl">
+            <span className="text-xl">🏆</span>
+            <div>
+              <div className="text-amber-400 font-bold text-sm">Quiz3種コンプリートボーナス獲得済み</div>
+              <div className="text-amber-600 text-xs">+10pt 本日取得済み</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -900,7 +974,7 @@ function SpellQuizScreen({ questions, onFinish, onHome }) {
   function handleSubmit() {
     if (status !== 'input' || inputVal.trim() === '') return
     const normalized = inputVal.trim().toLowerCase()
-    const correct = (q.word ?? '').toLowerCase()
+    const correct = (q.word ?? '').replace(/\s*[~〜].*/g, '').trim().toLowerCase()
     const isCorrect = normalized === correct
     const leapNum = q.leapNumber ?? q.wordObj?.leapNumber
     const rt = parseFloat(((Date.now() - questionStartRef.current) / 1000).toFixed(2))
@@ -1198,6 +1272,283 @@ function ReviewSlideshow({ words, onHome }) {
   )
 }
 
+// ─────────────────────────────────────────────
+// SortingScreen（仕分け練習 - 複数セッション対応）
+// ─────────────────────────────────────────────
+function SortingScreen({ initialQuestions, onFinish, onHome }) {
+  const [questions, setQuestions] = useState(initialQuestions)
+  const [knownSet, setKnownSet] = useState(new Set())
+  const [sessionPhase, setSessionPhase] = useState('playing') // 'playing' | 'result'
+  const [countdown, setCountdown] = useState(5)
+  const [cumulativeUnknown, setCumulativeUnknown] = useState([])
+  const [cumulativeKnown, setCumulativeKnown] = useState([])
+  const [excludedNums, setExcludedNums] = useState(new Set())
+  const [loading, setLoading] = useState(false)
+  const endingRef = useRef(false)
+  const handleContinueRef = useRef(null)
+
+  const unknownWords = questions.filter((_, i) => !knownSet.has(i))
+  const knownWords   = questions.filter((_, i) => knownSet.has(i))
+
+  function toggle(i) {
+    if (sessionPhase !== 'playing') return
+    setKnownSet(prev => {
+      const next = new Set(prev)
+      next.has(i) ? next.delete(i) : next.add(i)
+      return next
+    })
+  }
+
+  // 全語にわかるが押されたら自動で完了画面へ
+  useEffect(() => {
+    if (sessionPhase === 'playing' && questions.length > 0 && knownSet.size === questions.length) {
+      setSessionPhase('result')
+    }
+  }, [knownSet.size, questions.length, sessionPhase])
+
+  // result フェーズ開始時に5秒カウントダウン開始
+  useEffect(() => {
+    if (sessionPhase !== 'result') return
+    setCountdown(5)
+    const id = setInterval(() => setCountdown(c => c - 1), 1000)
+    return () => clearInterval(id)
+  }, [sessionPhase])
+
+  // カウントダウン 0 で自動進行
+  useEffect(() => {
+    if (countdown <= 0 && sessionPhase === 'result') {
+      handleContinueRef.current?.()
+    }
+  }, [countdown, sessionPhase])
+
+  async function recordSession(sessionUnknown, sessionKnown) {
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id ?? null
+    for (const word of sessionUnknown) {
+      const card = await db.cards.where('wordId').equals(word.id).first()
+      if (card) {
+        const next = {
+          sortUnknownCount: (card.sortUnknownCount ?? 0) + 1,
+          sortKnownStreak: 0,
+          sortLastKnownAt: null,
+        }
+        await db.cards.update(card.id, next).catch(() => {})
+        if (userId) syncCard(userId, word.leapNumber, word.word, { ...card, ...next })
+      }
+      addStudyLog({ leapNumber: word.leapNumber, word: word.word, eventType: 'incorrect', mode: 'sorting' })
+    }
+    for (const word of sessionKnown) {
+      const card = await db.cards.where('wordId').equals(word.id).first()
+      if (card) {
+        const newStreak = (card.sortKnownStreak ?? 0) + 1
+        const next = {
+          sortKnownCount: (card.sortKnownCount ?? 0) + 1,
+          sortKnownStreak: newStreak,
+          sortLastKnownAt: new Date(),
+        }
+        await db.cards.update(card.id, next).catch(() => {})
+        if (userId) syncCard(userId, word.leapNumber, word.word, { ...card, ...next })
+      }
+      addStudyLog({ leapNumber: word.leapNumber, word: word.word, eventType: 'studied', mode: 'sorting' })
+    }
+  }
+
+  async function handleContinue() {
+    if (endingRef.current) return
+    endingRef.current = true
+    setLoading(true)
+    await recordSession(unknownWords, knownWords)
+    const newExcluded = new Set([...excludedNums, ...unknownWords.map(w => w.leapNumber)])
+    const newCumUnknown = [...cumulativeUnknown, ...unknownWords]
+    const newCumKnown   = [...cumulativeKnown, ...knownWords]
+    const newQs = await fetchSortQuestions(newExcluded)
+    if (newQs.length === 0) {
+      onFinish({ cumulativeUnknown: newCumUnknown, cumulativeKnown: newCumKnown })
+      return
+    }
+    setCumulativeUnknown(newCumUnknown)
+    setCumulativeKnown(newCumKnown)
+    setExcludedNums(newExcluded)
+    setQuestions(newQs)
+    setKnownSet(new Set())
+    endingRef.current = false
+    setSessionPhase('playing')
+    setLoading(false)
+  }
+  handleContinueRef.current = handleContinue
+
+  async function handleEnd() {
+    if (endingRef.current) return
+    endingRef.current = true
+    await recordSession(unknownWords, knownWords)
+    onFinish({
+      cumulativeUnknown: [...cumulativeUnknown, ...unknownWords],
+      cumulativeKnown:   [...cumulativeKnown, ...knownWords],
+    })
+  }
+
+  // ── 結果画面（5秒カウントダウン→自動で次のラウンド） ──
+  if (sessionPhase === 'result') {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center px-4">
+        <div className="max-w-[600px] w-full text-center">
+          <h2 className="text-2xl font-bold text-amber-400 mb-6">仕分け完了！</h2>
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 mb-6">
+            <div className="text-white text-lg mb-3">
+              わかった: <span className="text-green-400 font-bold">{knownWords.length}語</span>
+              <span className="text-slate-500 mx-2">/</span>
+              わからなかった: <span className="text-red-400 font-bold">{unknownWords.length}語</span>
+            </div>
+            {loading ? (
+              <div className="text-slate-400 text-sm">次の単語を選出中...</div>
+            ) : (
+              <div className="text-slate-400 text-sm">
+                次の出題まで <span className="text-white font-bold text-2xl">{Math.max(0, countdown)}</span> 秒
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleEnd}
+            disabled={loading}
+            className="text-slate-400 text-sm underline active:opacity-60 disabled:opacity-30"
+          >
+            いったん終了
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── 練習画面 ──
+  return (
+    <div className="min-h-screen bg-slate-900 text-white flex flex-col">
+      <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800/60 px-4 py-2">
+        <div className="max-w-[600px] mx-auto flex items-center justify-between">
+          <div className="text-sm font-bold text-white">15単語仕分け</div>
+          <div className="text-sm text-slate-400">
+            わかった: <span className="text-white font-bold">{knownSet.size}</span>/{questions.length}
+          </div>
+          <button
+            onClick={() => setSessionPhase('result')}
+            className="px-4 py-1.5 text-sm font-bold bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors active:scale-95"
+          >
+            完了
+          </button>
+        </div>
+        <div className="max-w-[600px] mx-auto text-center text-xs text-slate-500 mt-0.5">
+          わかる単語をタップして伏せよう
+        </div>
+      </div>
+
+      <div className="flex-1 px-3 py-3 max-w-[600px] mx-auto w-full">
+        <div className="grid grid-cols-3 gap-2">
+          {questions.map((word, i) => {
+            const isKnown = knownSet.has(i)
+            return (
+              <button
+                key={i}
+                onClick={() => toggle(i)}
+                className="relative rounded-xl border text-xs font-semibold transition-all active:scale-95 min-h-[56px] flex items-center justify-center"
+                style={{
+                  backgroundColor: isKnown ? 'rgba(22,101,52,0.6)' : 'rgba(30,41,59,0.9)',
+                  borderColor: isKnown ? 'rgba(34,197,94,0.5)' : 'rgba(71,85,105,0.8)',
+                }}
+              >
+                {isKnown ? (
+                  <span className="text-green-400 text-3xl font-bold">✓</span>
+                ) : (
+                  <span className="px-2 break-all text-center leading-tight text-white">
+                    {word.word}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="pb-6 text-center">
+        <button
+          onClick={handleEnd}
+          className="text-slate-500 text-xs underline active:opacity-60"
+        >
+          いったん終了
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// SortingEndScreen（終了画面）
+// ─────────────────────────────────────────────
+function SortingEndScreen({ cumulativeUnknown, earnedPoints, completeBonusPts, onHome }) {
+  const [detailWord, setDetailWord] = useState(null)
+
+  if (detailWord) {
+    return (
+      <WordDetailScreen
+        word={detailWord}
+        sessionWords={cumulativeUnknown}
+        initialIndex={cumulativeUnknown.findIndex(w => w.id === detailWord.id)}
+        onBack={() => setDetailWord(null)}
+      />
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-white flex flex-col px-4 py-8">
+      <div className="max-w-[600px] mx-auto w-full">
+        <h1 className="text-2xl font-bold text-amber-400 mb-1">お疲れ様でした！</h1>
+        {earnedPoints > 0 && (
+          <div className="flex items-center gap-1.5 mb-1">
+            <img src="/badge.png" alt="" style={{ width: 20, height: 20 }} />
+            <span className="text-green-400 text-sm font-bold">+1ポイント獲得！</span>
+          </div>
+        )}
+        {completeBonusPts > 0 && (
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-xl">🏆</span>
+            <span className="text-amber-400 text-sm font-bold">Quiz3種コンプリートボーナス +10pt！</span>
+          </div>
+        )}
+        <p className="text-slate-400 text-sm mb-6">
+          わからなかった単語: 計{cumulativeUnknown.length}語
+        </p>
+
+        {cumulativeUnknown.length > 0 && (
+          <div className="mb-8">
+            <div className="text-slate-500 text-xs mb-3">── わからなかった単語 ──────────────</div>
+            <div className="flex flex-col gap-2">
+              {cumulativeUnknown.map((word, i) => (
+                <button
+                  key={i}
+                  onClick={() => setDetailWord(word)}
+                  className="w-full text-left px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl hover:border-blue-500 transition-colors active:scale-95"
+                >
+                  <span className="text-white font-medium">{word.word}</span>
+                  <span className="text-slate-400 text-sm ml-3">{word.meaning}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {cumulativeUnknown.length === 0 && (
+          <p className="text-green-400 text-lg font-bold mb-8">全問わかった！素晴らしい！🎉</p>
+        )}
+
+        <button
+          onClick={onHome}
+          className="w-full py-5 text-lg font-bold bg-slate-700 hover:bg-slate-600 rounded-2xl transition-colors active:scale-95"
+        >
+          ホームへ戻る
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // デイリーポイント判定（今日まだ取得していなければ 1、取得済みなら 0）
 async function claimDailyPoint(storageKey, userId) {
   const today = new Date().toISOString().slice(0, 10)
@@ -1206,7 +1557,9 @@ async function claimDailyPoint(storageKey, userId) {
   if (localStorage.getItem(localKey)) return 0
   // サーバー確認（ログイン中のみ）：別デバイスで済ませた場合も0点
   if (userId) {
-    const mode = storageKey === 'vocaleap_practice_daily' ? 'practice' : 'spell'
+    const mode = storageKey === 'vocaleap_practice_daily' ? 'practice'
+               : storageKey === 'vocaleap_spell_daily' ? 'spell'
+               : 'sort'
     const completions = await fetchTodayModeCompletions(userId)
     if (completions.includes(mode)) {
       localStorage.setItem(localKey, '1')
@@ -1230,9 +1583,58 @@ export default function DailyQuiz() {
   const [maskMode, setMaskMode] = useState(false)
   const [spellQuestions, setSpellQuestions] = useState([])
   const [spellResult, setSpellResult] = useState({ score: 0, total: 0, wrongAnswers: [] })
+  const [sortInitialQuestions, setSortInitialQuestions] = useState([])
+  const [sortResult, setSortResult] = useState({ cumulativeUnknown: [] })
   const [earnedPoints, setEarnedPoints] = useState(0)
+  const [completeBonusPts, setCompleteBonusPts] = useState(0)
+  const [showBonusOverlay, setShowBonusOverlay] = useState(false)
   const preStreakPhaseRef = useRef('result')
   const { recordDailyQuiz } = useUserStats()
+
+  async function checkAndClaimCompleteBonus(userId) {
+    const today = new Date().toISOString().slice(0, 10)
+    const bonusKey = `vocaleap_complete_bonus_daily_${today}`
+    if (localStorage.getItem(bonusKey)) return 0
+    const allDone = localStorage.getItem(`vocaleap_practice_daily_${today}`)
+                 && localStorage.getItem(`vocaleap_spell_daily_${today}`)
+                 && localStorage.getItem(`vocaleap_sorting_daily_${today}`)
+    if (!allDone) return 0
+    localStorage.setItem(bonusKey, '1')
+    if (userId) syncDailyModeCompletion(userId, new Date(), 'complete_bonus')
+    const result = await recordDailyQuiz(10)
+    if (result.streakUpdated) setStreakToast(result.currentStreak)
+    return 10
+  }
+
+  async function handleSortStart() {
+    const qs = await fetchSortQuestions()
+    if (qs.length === 0) {
+      alert('まずは4択練習やチャレンジで単語を学習してください')
+      return
+    }
+    setSortInitialQuestions(qs)
+    setPhase('sort-playing')
+  }
+
+  async function handleSortFinish({ cumulativeUnknown, cumulativeKnown }) {
+    setSortResult({ cumulativeUnknown })
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id ?? null
+    const pts = await claimDailyPoint('vocaleap_sorting_daily', userId)
+    setEarnedPoints(pts)
+    const result = await recordDailyQuiz(pts)
+    if (result.streakUpdated) setStreakToast(result.currentStreak)
+    db.dailyQuizHistory.add({ date: new Date() }).catch(() => {})
+    if (userId) {
+      syncDailyQuizHistory(userId, new Date())
+      if (pts > 0) syncDailyModeCompletion(userId, new Date(), 'sort')
+    }
+    const bonus = await checkAndClaimCompleteBonus(userId)
+    setCompleteBonusPts(bonus)
+    preStreakPhaseRef.current = 'sort-end'
+    setShowSessionOverlay(true)
+    setPhase('sort-end')
+  }
 
   async function handleSpellStart(parts) {
     const qs = await fetchSpellQuestions(parts)
@@ -1254,6 +1656,8 @@ export default function DailyQuiz() {
       syncDailyQuizHistory(userId, new Date())
       if (pts > 0) syncDailyModeCompletion(userId, new Date(), 'spell')
     }
+    const bonus = await checkAndClaimCompleteBonus(userId)
+    setCompleteBonusPts(bonus)
     preStreakPhaseRef.current = 'spell-result'
     setShowSessionOverlay(true)
     setPhase('spell-result')
@@ -1326,13 +1730,59 @@ export default function DailyQuiz() {
       syncDailyQuizHistory(userId, new Date())
       if (pts > 0) syncDailyModeCompletion(userId, new Date(), 'practice')
     }
+    const bonus = await checkAndClaimCompleteBonus(userId)
+    setCompleteBonusPts(bonus)
     preStreakPhaseRef.current = 'result'
     setShowSessionOverlay(true)
     setPhase('result')
   }
 
   if (phase === 'mode-select') {
-    return <ModeSelect onSelectMode={(mode) => setPhase(mode === 'spell' ? 'spell-select' : 'select')} onBack={() => navigate('/')} />
+    return <ModeSelect
+      onSelectMode={(mode) => {
+        if (mode === 'spell') setPhase('spell-select')
+        else if (mode === 'sort') handleSortStart()
+        else setPhase('select')
+      }}
+      onBack={() => navigate('/')}
+    />
+  }
+  if (phase === 'sort-playing') {
+    return <SortingScreen initialQuestions={sortInitialQuestions} onFinish={handleSortFinish} onHome={() => navigate('/')} />
+  }
+  if (phase === 'sort-end') {
+    return (
+      <>
+        {showSessionOverlay && (
+          <SessionCompleteOverlay
+            label="セッション完了！"
+            onDone={() => {
+              setShowSessionOverlay(false)
+              if (completeBonusPts > 0) { setShowBonusOverlay(true) }
+              else if (streakToast !== null) { setPhase('sort-streak') }
+            }}
+          />
+        )}
+        {showBonusOverlay && (
+          <SessionCompleteOverlay
+            label={'🏆 コンプリートボーナス\n+10pt！'}
+            onDone={() => {
+              setShowBonusOverlay(false)
+              if (streakToast !== null) { setPhase('sort-streak') }
+            }}
+          />
+        )}
+        <SortingEndScreen
+          cumulativeUnknown={sortResult.cumulativeUnknown}
+          earnedPoints={earnedPoints}
+          completeBonusPts={completeBonusPts}
+          onHome={() => navigate('/')}
+        />
+      </>
+    )
+  }
+  if (phase === 'sort-streak') {
+    return <StreakToast streak={streakToast} onDone={() => { setStreakToast(null); setPhase('sort-end') }} />
   }
   if (phase === 'spell-select') {
     return <SpellPartSelect onStart={handleSpellStart} onBack={() => setPhase('mode-select')} />
@@ -1348,7 +1798,17 @@ export default function DailyQuiz() {
             label="セッション完了！"
             onDone={() => {
               setShowSessionOverlay(false)
-              if (streakToast !== null) setPhase('spell-streak')
+              if (completeBonusPts > 0) { setShowBonusOverlay(true) }
+              else if (streakToast !== null) { setPhase('spell-streak') }
+            }}
+          />
+        )}
+        {showBonusOverlay && (
+          <SessionCompleteOverlay
+            label={'🏆 コンプリートボーナス\n+10pt！'}
+            onDone={() => {
+              setShowBonusOverlay(false)
+              if (streakToast !== null) { setPhase('spell-streak') }
             }}
           />
         )}
@@ -1380,10 +1840,17 @@ export default function DailyQuiz() {
             label="セッション完了！"
             onDone={() => {
               setShowSessionOverlay(false)
-              if (streakToast !== null) {
-                // StreakToastはオーバーレイ消去後に表示するため phase を一時変更
-                setPhase('streak')
-              }
+              if (completeBonusPts > 0) { setShowBonusOverlay(true) }
+              else if (streakToast !== null) { setPhase('streak') }
+            }}
+          />
+        )}
+        {showBonusOverlay && (
+          <SessionCompleteOverlay
+            label={'🏆 コンプリートボーナス\n+10pt！'}
+            onDone={() => {
+              setShowBonusOverlay(false)
+              if (streakToast !== null) { setPhase('streak') }
             }}
           />
         )}

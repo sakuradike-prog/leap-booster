@@ -607,6 +607,14 @@ function SummaryScreen({ questions, onRetry, onHome }) {
     setRevealed(prev => ({ ...prev, [i]: !prev[i] }))
   }
 
+  function speak(text, e) {
+    e.stopPropagation()
+    speechSynthesis.cancel()
+    const utt = new SpeechSynthesisUtterance(text)
+    utt.lang = 'en-US'
+    speechSynthesis.speak(utt)
+  }
+
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col px-4 py-8">
       <div className="max-w-[600px] mx-auto w-full">
@@ -627,7 +635,16 @@ function SummaryScreen({ questions, onRetry, onHome }) {
             >
               <span className="text-slate-500 text-xs font-bold mr-2">{i + 1}.</span>
               {revealed[i] ? (
-                <span className="text-blue-200 font-medium leading-relaxed">{q.answerEn}</span>
+                <span className="inline-flex items-center justify-between gap-2 w-[calc(100%-1.5rem)]">
+                  <span className="text-blue-200 font-medium leading-relaxed">{q.answerEn}</span>
+                  <button
+                    onClick={(e) => speak(q.answerEn, e)}
+                    className="shrink-0 p-1.5 rounded-lg text-blue-400 hover:text-white hover:bg-blue-700 active:scale-90 transition-all"
+                    title="読み上げ"
+                  >
+                    🔊
+                  </button>
+                </span>
               ) : (
                 <span className="text-slate-200 leading-relaxed">{q.questionJa}</span>
               )}

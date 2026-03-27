@@ -167,12 +167,14 @@ export default function SessionCompleteOverlay({ label = 'セッション完了�
           </div>
           <div style={{
             fontFamily: "'Bebas Neue', system-ui, sans-serif",
-            fontSize: 40,
-            lineHeight: 1.15,
+            fontSize: 36,
+            lineHeight: 1.2,
             color: '#22c55e',
             textShadow: '0 0 20px rgba(34,197,94,.9), 0 0 50px rgba(34,197,94,.5)',
             animation: 'scLabelIn .48s cubic-bezier(0.34,1.56,0.64,1) .18s both',
             marginTop: 10,
+            whiteSpace: 'pre-line',
+            textAlign: 'center',
           }}>
             {label}
           </div>
