@@ -54,7 +54,10 @@ export default function StudyHistory() {
       const seenDayLeap = new Set()
 
       // study_logs を新しい順に処理（同日同単語は最新のみ残す）
-      const sortedLogs = [...studyLogs].sort((a, b) => b.timestamp - a.timestamp)
+      // timestamp が同値のとき id（自動採番）が大きい方が後で記録されたログ
+      const sortedLogs = [...studyLogs].sort((a, b) =>
+        b.timestamp !== a.timestamp ? b.timestamp - a.timestamp : (b.id ?? 0) - (a.id ?? 0)
+      )
       for (const log of sortedLogs) {
         const d = new Date(log.timestamp)
         const key = dayKey(d)

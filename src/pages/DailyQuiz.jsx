@@ -1286,6 +1286,7 @@ function SortingScreen({ initialQuestions, onFinish, onHome }) {
   const [loading, setLoading] = useState(false)
   const endingRef = useRef(false)
   const handleContinueRef = useRef(null)
+  const handleEndRef = useRef(null)
 
   const unknownWords = questions.filter((_, i) => !knownSet.has(i))
   const knownWords   = questions.filter((_, i) => knownSet.has(i))
@@ -1299,10 +1300,10 @@ function SortingScreen({ initialQuestions, onFinish, onHome }) {
     })
   }
 
-  // 全語にわかるが押されたら自動で完了画面へ
+  // 全語にわかるが押されたらカウントダウンなしで即終了
   useEffect(() => {
     if (sessionPhase === 'playing' && questions.length > 0 && knownSet.size === questions.length) {
-      setSessionPhase('result')
+      handleEndRef.current?.()
     }
   }, [knownSet.size, questions.length, sessionPhase])
 
@@ -1404,6 +1405,7 @@ function SortingScreen({ initialQuestions, onFinish, onHome }) {
     await recordKnownWords(finalKnown)
     onFinish({ cumulativeUnknown: finalUnknown, cumulativeKnown: finalKnown })
   }
+  handleEndRef.current = handleEnd
 
   // ── 結果画面（5秒カウントダウン→自動で次のラウンド） ──
   if (sessionPhase === 'result') {
