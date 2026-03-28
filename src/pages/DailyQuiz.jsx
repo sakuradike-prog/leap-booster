@@ -1279,7 +1279,7 @@ function SortingScreen({ initialQuestions, onFinish, onHome }) {
   const [questions, setQuestions] = useState(initialQuestions)
   const [knownSet, setKnownSet] = useState(new Set())
   const [sessionPhase, setSessionPhase] = useState('playing') // 'playing' | 'result'
-  const [countdown, setCountdown] = useState(5)
+  const [countdown, setCountdown] = useState(null) // null = 非アクティブ
   const [cumulativeUnknown, setCumulativeUnknown] = useState([])
   const [cumulativeKnown, setCumulativeKnown] = useState([])
   const [excludedNums, setExcludedNums] = useState(new Set())
@@ -1306,22 +1306,26 @@ function SortingScreen({ initialQuestions, onFinish, onHome }) {
     }
   }, [knownSet.size, questions.length, sessionPhase])
 
-  // result フェーズ開始時に5秒カウントダウン開始
+  // result フェーズ開始時: countdownリセット（playing時はnullに戻す）
   useEffect(() => {
-    if (sessionPhase !== 'result') return
+    if (sessionPhase !== 'result') {
+      setCountdown(null)
+      return
+    }
     setCountdown(5)
-    const id = setInterval(() => setCountdown(c => c - 1), 1000)
+    const id = setInterval(() => setCountdown(c => (c !== null ? c - 1 : null)), 1000)
     return () => clearInterval(id)
   }, [sessionPhase])
 
-  // カウントダウン 0 で自動進行
+  // countdown が厳密に 0 になったとき自動進行（null や負数では発火しない）
   useEffect(() => {
-    if (countdown <= 0 && sessionPhase === 'result') {
+    if (countdown === 0 && sessionPhase === 'result') {
       handleContinueRef.current?.()
     }
   }, [countdown, sessionPhase])
 
   async function recordSession(sessionUnknown, sessionKnown) {
+    const now = new Date()
     const { data: { session } } = await supabase.auth.getSession()
     const userId = session?.user?.id ?? null
     for (const word of sessionUnknown) {
@@ -1331,10 +1335,13 @@ function SortingScreen({ initialQuestions, onFinish, onHome }) {
           sortUnknownCount: (card.sortUnknownCount ?? 0) + 1,
           sortKnownStreak: 0,
           sortLastKnownAt: null,
+          lastReviewed: now,
         }
         await db.cards.update(card.id, next).catch(() => {})
         if (userId) syncCard(userId, word.leapNumber, word.word, { ...card, ...next })
       }
+      // 出題記録 + 不正解記録の両方を残す
+      addStudyLog({ leapNumber: word.leapNumber, word: word.word, eventType: 'studied', mode: 'sorting' })
       addStudyLog({ leapNumber: word.leapNumber, word: word.word, eventType: 'incorrect', mode: 'sorting' })
     }
     for (const word of sessionKnown) {
@@ -1344,7 +1351,8 @@ function SortingScreen({ initialQuestions, onFinish, onHome }) {
         const next = {
           sortKnownCount: (card.sortKnownCount ?? 0) + 1,
           sortKnownStreak: newStreak,
-          sortLastKnownAt: new Date(),
+          sortLastKnownAt: now,
+          lastReviewed: now,
         }
         await db.cards.update(card.id, next).catch(() => {})
         if (userId) syncCard(userId, word.leapNumber, word.word, { ...card, ...next })
@@ -1358,9 +1366,14 @@ function SortingScreen({ initialQuestions, onFinish, onHome }) {
     endingRef.current = true
     setLoading(true)
     await recordSession(unknownWords, knownWords)
-    const newExcluded = new Set([...excludedNums, ...unknownWords.map(w => w.leapNumber)])
     const newCumUnknown = [...cumulativeUnknown, ...unknownWords]
     const newCumKnown   = [...cumulativeKnown, ...knownWords]
+    // 出題中の全語にわかるが押されたら終了（仕様: 全語わかったらセッション終了）
+    if (unknownWords.length === 0) {
+      onFinish({ cumulativeUnknown: newCumUnknown, cumulativeKnown: newCumKnown })
+      return
+    }
+    const newExcluded = new Set([...excludedNums, ...unknownWords.map(w => w.leapNumber)])
     const newQs = await fetchSortQuestions(newExcluded)
     if (newQs.length === 0) {
       onFinish({ cumulativeUnknown: newCumUnknown, cumulativeKnown: newCumKnown })
@@ -1403,7 +1416,7 @@ function SortingScreen({ initialQuestions, onFinish, onHome }) {
               <div className="text-slate-400 text-sm">次の単語を選出中...</div>
             ) : (
               <div className="text-slate-400 text-sm">
-                次の出題まで <span className="text-white font-bold text-2xl">{Math.max(0, countdown)}</span> 秒
+                次の出題まで <span className="text-white font-bold text-2xl">{countdown ?? 5}</span> 秒
               </div>
             )}
           </div>
