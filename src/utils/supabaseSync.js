@@ -471,11 +471,29 @@ export async function syncDailyModeCompletion(userId, date, mode) {
   if (!userId) return
   try {
     const { error } = await supabase.from('daily_mode_completions').upsert(
-      { user_id: userId, date: toLocalDateStr(date), mode },
+      { user_id: userId, date: toLocalDateStr(date), mode, completed_at: new Date().toISOString() },
       { onConflict: 'user_id,date,mode' }
     )
     if (error) console.warn('[Vocaleap] daily_mode_completions sync失敗:', error.message)
   } catch (err) { console.warn('[Vocaleap] daily_mode_completions sync例外:', err) }
+}
+
+/** 先生ダッシュボード用：指定ユーザーの練習完了履歴を取得（直近N日） */
+export async function fetchUserModeCompletions(userId, days = 30) {
+  if (!userId) return []
+  try {
+    const since = new Date()
+    since.setDate(since.getDate() - days)
+    const sinceStr = toLocalDateStr(since)
+    const { data, error } = await supabase
+      .from('daily_mode_completions')
+      .select('date, mode, completed_at')
+      .eq('user_id', userId)
+      .gte('date', sinceStr)
+      .order('date', { ascending: false })
+    if (error || !data) return []
+    return data
+  } catch { return [] }
 }
 
 /** 今日完了済みのモード一覧をサーバーから取得 */

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useAllowedUser } from '../contexts/AllowedUserContext'
-import { fetchRankings } from '../utils/supabaseSync'
+import { fetchRankings, fetchUserModeCompletions } from '../utils/supabaseSync'
 
 function todayStr() {
   const d = new Date()
@@ -26,6 +26,104 @@ const SORT_OPTIONS = [
   { key: 'challenge_clear_count', label: 'チャレンジ' },
 ]
 
+const MODE_LABELS = {
+  quiz:           { label: '4択練習',         icon: '📝' },
+  sorting:        { label: '仕分け練習',       icon: '🃏' },
+  spell:          { label: 'スペル練習',       icon: '⌨️' },
+  challenge:      { label: 'チャレンジ',       icon: '⚡' },
+  complete_bonus: { label: '全モード完了ボーナス', icon: '🏆' },
+}
+
+function getModeInfo(mode) {
+  return MODE_LABELS[mode] ?? { label: mode, icon: '▪️' }
+}
+
+function StudentDetail({ student, onBack }) {
+  const [completions, setCompletions] = useState(null)
+
+  useEffect(() => {
+    fetchUserModeCompletions(student.user_id, 30)
+      .then(data => {
+        // group by date
+        const map = {}
+        for (const row of data) {
+          if (!map[row.date]) map[row.date] = []
+          map[row.date].push({ mode: row.mode, completedAt: row.completed_at })
+        }
+        const groups = Object.entries(map)
+          .sort((a, b) => b[0].localeCompare(a[0]))
+          .map(([date, entries]) => ({ date, entries }))
+        setCompletions(groups)
+      })
+  }, [student.user_id])
+
+  const status = activityStatus(student.last_study_date)
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="text-slate-400 hover:text-white text-sm active:opacity-60">← 戻る</button>
+        <div className="flex items-center gap-2">
+          <span className="text-base">{status.emoji}</span>
+          <span className="font-bold text-white">{student.display_name || '名無し'}</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-slate-800 rounded-xl p-3 text-center">
+          <div className="font-black tabular-nums text-lg text-white" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+            {(student.total_points ?? 0).toLocaleString()}
+          </div>
+          <div className="text-xs text-slate-500">ポイント</div>
+        </div>
+        <div className="bg-slate-800 rounded-xl p-3 text-center">
+          <div className="font-black tabular-nums text-lg text-orange-400" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+            {student.current_streak ?? 0}
+          </div>
+          <div className="text-xs text-slate-500">🔥 ストリーク</div>
+        </div>
+        <div className="bg-slate-800 rounded-xl p-3 text-center">
+          <div className="font-black tabular-nums text-lg text-purple-400" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+            {student.challenge_clear_count ?? 0}
+          </div>
+          <div className="text-xs text-slate-500">⚡ チャレンジ</div>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-sm font-bold text-slate-400 mb-2">練習完了履歴（直近30日）</p>
+        {completions === null ? (
+          <p className="text-slate-500 text-sm text-center py-6">読み込み中…</p>
+        ) : completions.length === 0 ? (
+          <p className="text-slate-500 text-sm text-center py-6">完了履歴がありません</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {completions.map(({ date, entries }) => (
+              <div key={date} className="bg-slate-800 rounded-xl px-4 py-3">
+                <p className="text-xs text-slate-400 font-bold mb-2">{date}</p>
+                <div className="flex flex-col gap-1.5">
+                  {entries.map(({ mode, completedAt }) => {
+                    const { label, icon } = getModeInfo(mode)
+                    const timeStr = completedAt
+                      ? new Date(completedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+                      : null
+                    return (
+                      <div key={mode} className="flex items-center justify-between bg-slate-700/60 rounded-lg px-3 py-1.5">
+                        <span className="text-xs text-slate-200">{icon} {label}</span>
+                        {timeStr && <span className="text-xs text-slate-500 tabular-nums">{timeStr}</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function TeacherDashboard() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
@@ -33,6 +131,7 @@ export default function TeacherDashboard() {
   const [students, setStudents] = useState([])
   const [loading, setLoading] = useState(true)
   const [sortKey, setSortKey] = useState('last_study_date')
+  const [selectedStudent, setSelectedStudent] = useState(null)
 
   const isTeacher = allowedUser?.role === 'teacher'
 
@@ -91,8 +190,13 @@ export default function TeacherDashboard() {
           </div>
         )}
 
+        {/* 生徒詳細 */}
+        {isTeacher && selectedStudent && (
+          <StudentDetail student={selectedStudent} onBack={() => setSelectedStudent(null)} />
+        )}
+
         {/* ダッシュボード本体 */}
-        {isTeacher && (
+        {isTeacher && !selectedStudent && (
           <>
             {/* サマリー統計 */}
             {!loading && (
@@ -154,14 +258,15 @@ export default function TeacherDashboard() {
                   const studiedToday = s.last_study_date === today
 
                   return (
-                    <div
+                    <button
                       key={s.user_id}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
+                      onClick={() => setSelectedStudent(s)}
+                      className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl border active:scale-95 transition-all ${
                         isMe
-                          ? 'bg-blue-900/30 border-blue-700/40'
+                          ? 'bg-blue-900/30 border-blue-700/40 hover:bg-blue-900/50'
                           : studiedToday
-                          ? 'bg-green-950/30 border-green-800/30'
-                          : 'bg-slate-800/80 border-slate-700/60'
+                          ? 'bg-green-950/30 border-green-800/30 hover:bg-green-950/50'
+                          : 'bg-slate-800/80 border-slate-700/60 hover:bg-slate-700/80'
                       }`}
                     >
                       <div className="w-6 text-center flex-shrink-0">
@@ -200,7 +305,7 @@ export default function TeacherDashboard() {
                           <div className="text-xs text-slate-600">⚡</div>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
