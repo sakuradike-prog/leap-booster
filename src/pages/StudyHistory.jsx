@@ -23,73 +23,72 @@ export default function StudyHistory() {
 
   useEffect(() => {
     async function load() {
-      const [allCards, capturedList, checkedList] = await Promise.all([
-        db.cards.toArray(),
+      const [studyLogs, capturedList, checkedList, allCards, allWords] = await Promise.all([
+        db.study_logs.filter(l => l.eventType === 'studied').toArray(),
         db.captured_words.toArray(),
         db.checked_words.toArray(),
-      ])
-      const checkedLeapSet = new Set(checkedList.map(c => c.leapNumber))
-
-      // 全wordIdを集める（cards + captured_words の leapNumber で lookup）
-      const cardWordIds = allCards.map(c => c.wordId)
-      const capturedLeapNums = capturedList.map(c => c.leapNumber)
-      const capturedLeapSet = new Set(capturedLeapNums)
-
-      const [cardWords, capturedWords] = await Promise.all([
-        cardWordIds.length > 0
-          ? db.words.where('id').anyOf(cardWordIds).toArray()
-          : Promise.resolve([]),
-        capturedLeapNums.length > 0
-          ? db.words.where('leapNumber').anyOf(capturedLeapNums).toArray()
-          : Promise.resolve([]),
+        db.cards.toArray(),
+        db.words.toArray(),
       ])
 
-      const wordMap = Object.fromEntries(cardWords.map(w => [w.id, w]))
-      // leapNumber → word（複数PartにまたがるNO重複があるため最初の1件を使う）
-      const leapNumMap = {}
-      for (const w of capturedWords) {
-        if (!leapNumMap[w.leapNumber]) leapNumMap[w.leapNumber] = w
+      const checkedLeapSet  = new Set(checkedList.map(c => c.leapNumber))
+      const capturedLeapSet = new Set(capturedList.map(c => c.leapNumber))
+
+      // leapNumber → word（最初の1件を使用）
+      const leapToWord = {}
+      for (const w of allWords) {
+        if (!leapToWord[w.leapNumber]) leapToWord[w.leapNumber] = w
       }
 
-      // wordId → incorrectCount（色分け用）
-      const wordIdToIncorrectCount = {}
+      // leapNumber → card（incorrectCount 青色表示用）
+      const wordIdToLeap = {}
+      for (const w of allWords) wordIdToLeap[w.id] = w.leapNumber
+      const leapToCard = {}
       for (const card of allCards) {
-        if (card.wordId) wordIdToIncorrectCount[card.wordId] = card.incorrectCount ?? 0
+        const ln = wordIdToLeap[card.wordId]
+        if (ln && !leapToCard[ln]) leapToCard[ln] = card
       }
 
-      // 日付でグループ化（wordId + dateKey でユニーク）
       const dateMap = {}
-      const seenKeys = new Set()
+      // 同日同単語の重複除去キー（新しい順に処理するので先着 = 最新）
+      const seenDayLeap = new Set()
 
-      function addEntry(key, date, word) {
-        const dedupeKey = `${word.id}_${key}`
-        if (seenKeys.has(dedupeKey)) return
-        seenKeys.add(dedupeKey)
-        if (!dateMap[key]) dateMap[key] = { dateKey: key, date, entries: [] }
-        const hasError = (wordIdToIncorrectCount[word.id] ?? 0) >= 1
-        const isCaptured = capturedLeapSet.has(word.leapNumber)
-        const isChecked = checkedLeapSet.has(word.leapNumber)
-        dateMap[key].entries.push({ word, date: new Date(date), isCaptured, isChecked, hasError })
+      // study_logs を新しい順に処理（同日同単語は最新のみ残す）
+      const sortedLogs = [...studyLogs].sort((a, b) => b.timestamp - a.timestamp)
+      for (const log of sortedLogs) {
+        const d = new Date(log.timestamp)
+        const key = dayKey(d)
+        const dedupeKey = `${key}_${log.leapNumber}`
+        if (seenDayLeap.has(dedupeKey)) continue
+        seenDayLeap.add(dedupeKey)
+
+        const word = leapToWord[log.leapNumber]
+        if (!word) continue
+
+        if (!dateMap[key]) dateMap[key] = { dateKey: key, date: d, entries: [] }
+        const card = leapToCard[log.leapNumber]
+        const hasError   = (card?.incorrectCount ?? 0) >= 1
+        const isCaptured = capturedLeapSet.has(log.leapNumber)
+        const isChecked  = checkedLeapSet.has(log.leapNumber)
+        dateMap[key].entries.push({ word, date: d, isCaptured, isChecked, hasError })
       }
 
-      // cards からの履歴（lastReviewed があるもののみ）
-      for (const card of allCards) {
-        if (!card.lastReviewed || !wordMap[card.wordId]) continue
-        const d = new Date(card.lastReviewed)
-        addEntry(dayKey(d), d, wordMap[card.wordId])
-      }
-
-      // captured_words からの履歴
+      // captured_words からの履歴（study_logs に含まれない日付分も追加）
       for (const cap of capturedList) {
-        const word = leapNumMap[cap.leapNumber]
+        const word = leapToWord[cap.leapNumber]
         if (!word) continue
         const d = cap.capturedAt ? new Date(cap.capturedAt) : new Date()
-        addEntry(dayKey(d), d, word)
+        const key = dayKey(d)
+        const dedupeKey = `${key}_${cap.leapNumber}`
+        if (seenDayLeap.has(dedupeKey)) continue
+        seenDayLeap.add(dedupeKey)
+        if (!dateMap[key]) dateMap[key] = { dateKey: key, date: d, entries: [] }
+        dateMap[key].entries.push({ word, date: d, isCaptured: true, isChecked: checkedLeapSet.has(cap.leapNumber), hasError: false })
       }
 
       if (Object.keys(dateMap).length === 0) { setLoading(false); return }
 
-      // 新しい日付が上・単語は時刻が新しい順
+      // 日付は新しい順、各日の単語も新しい順
       const sorted = Object.values(dateMap)
         .sort((a, b) => b.date - a.date)
         .map(g => ({

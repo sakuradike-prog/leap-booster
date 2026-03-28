@@ -236,14 +236,20 @@ export default function Home() {
     return () => clearTimeout(timer)
   }, [freezeNotice, clearFreezeNotice])
 
-  // 学習履歴の総件数（cards.lastReviewed あり ＋ captured_words、重複カウント）
+  // 学習履歴の累計件数（日付×単語のユニーク組み合わせ + captured_words）
   async function loadStudyCount() {
     try {
-      const [cardsCount, capturedKeys] = await Promise.all([
-        db.cards.filter(c => !!c.lastReviewed).count(),
+      const [studyLogs, capturedKeys] = await Promise.all([
+        db.study_logs.filter(l => l.eventType === 'studied').toArray(),
         db.captured_words.orderBy('leapNumber').uniqueKeys(),
       ])
-      setTotalStudyCount(cardsCount + capturedKeys.length)
+      const seen = new Set()
+      for (const log of studyLogs) {
+        const d = new Date(log.timestamp)
+        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}_${log.leapNumber}`
+        seen.add(key)
+      }
+      setTotalStudyCount(seen.size + capturedKeys.length)
     } catch {}
   }
 
