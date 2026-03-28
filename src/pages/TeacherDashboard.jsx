@@ -27,8 +27,8 @@ const SORT_OPTIONS = [
 ]
 
 const MODE_LABELS = {
-  quiz:           { label: '4択練習',         icon: '📝' },
-  sorting:        { label: '仕分け練習',       icon: '🃏' },
+  practice:       { label: '4択練習',         icon: '📝' },
+  sort:           { label: '仕分け練習',       icon: '🃏' },
   spell:          { label: 'スペル練習',       icon: '⌨️' },
   challenge:      { label: 'チャレンジ',       icon: '⚡' },
   complete_bonus: { label: '全モード完了ボーナス', icon: '🏆' },
