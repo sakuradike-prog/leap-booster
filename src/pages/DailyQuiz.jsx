@@ -1324,36 +1324,37 @@ function SortingScreen({ initialQuestions, onFinish, onHome }) {
     }
   }, [countdown, sessionPhase])
 
-  async function recordSession(sessionUnknown, sessionKnown) {
+  // わからなかった単語：ラウンド終了時に即記録（次の選出でクールタイム対象外のため問題なし）
+  async function recordUnknownWords(words) {
     const now = new Date()
     const { data: { session } } = await supabase.auth.getSession()
     const userId = session?.user?.id ?? null
-    for (const word of sessionUnknown) {
+    for (const word of words) {
       const card = await db.cards.where('wordId').equals(word.id).first()
       if (card) {
-        const next = {
-          sortUnknownCount: (card.sortUnknownCount ?? 0) + 1,
-          sortKnownStreak: 0,
-          sortLastKnownAt: null,
-          lastReviewed: now,
-        }
+        const next = { sortUnknownCount: (card.sortUnknownCount ?? 0) + 1, sortKnownStreak: 0, sortLastKnownAt: null, lastReviewed: now }
         await db.cards.update(card.id, next).catch(() => {})
         if (userId) syncCard(userId, word.leapNumber, word.word, { ...card, ...next })
       }
-      // 出題記録 + 不正解記録の両方を残す
       addStudyLog({ leapNumber: word.leapNumber, word: word.word, eventType: 'studied', mode: 'sorting' })
       addStudyLog({ leapNumber: word.leapNumber, word: word.word, eventType: 'incorrect', mode: 'sorting' })
     }
-    for (const word of sessionKnown) {
+  }
+
+  // わかった単語：セッション終了時にのみ記録（クールタイムはセッション間に適用するため）
+  // 同じ単語が複数ラウンドに出た場合も1回だけ記録（word.id で重複除去）
+  async function recordKnownWords(words) {
+    const now = new Date()
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id ?? null
+    const seen = new Set()
+    for (const word of words) {
+      if (seen.has(word.id)) continue
+      seen.add(word.id)
       const card = await db.cards.where('wordId').equals(word.id).first()
       if (card) {
         const newStreak = (card.sortKnownStreak ?? 0) + 1
-        const next = {
-          sortKnownCount: (card.sortKnownCount ?? 0) + 1,
-          sortKnownStreak: newStreak,
-          sortLastKnownAt: now,
-          lastReviewed: now,
-        }
+        const next = { sortKnownCount: (card.sortKnownCount ?? 0) + 1, sortKnownStreak: newStreak, sortLastKnownAt: now, lastReviewed: now }
         await db.cards.update(card.id, next).catch(() => {})
         if (userId) syncCard(userId, word.leapNumber, word.word, { ...card, ...next })
       }
@@ -1365,17 +1366,21 @@ function SortingScreen({ initialQuestions, onFinish, onHome }) {
     if (endingRef.current) return
     endingRef.current = true
     setLoading(true)
-    await recordSession(unknownWords, knownWords)
+    // わからなかった単語を即記録（次の fetchSortQuestions 前に行うが、クールタイムは設定しない）
+    await recordUnknownWords(unknownWords)
     const newCumUnknown = [...cumulativeUnknown, ...unknownWords]
     const newCumKnown   = [...cumulativeKnown, ...knownWords]
-    // 出題中の全語にわかるが押されたら終了（仕様: 全語わかったらセッション終了）
+    // 出題中の全語にわかるが押されたら終了
     if (unknownWords.length === 0) {
+      await recordKnownWords(newCumKnown)
       onFinish({ cumulativeUnknown: newCumUnknown, cumulativeKnown: newCumKnown })
       return
     }
+    // わからなかった単語を除外して次の選出（わかった単語はまだDB未更新→クールタイムなし→再選出可）
     const newExcluded = new Set([...excludedNums, ...unknownWords.map(w => w.leapNumber)])
     const newQs = await fetchSortQuestions(newExcluded)
     if (newQs.length === 0) {
+      await recordKnownWords(newCumKnown)
       onFinish({ cumulativeUnknown: newCumUnknown, cumulativeKnown: newCumKnown })
       return
     }
@@ -1393,11 +1398,11 @@ function SortingScreen({ initialQuestions, onFinish, onHome }) {
   async function handleEnd() {
     if (endingRef.current) return
     endingRef.current = true
-    await recordSession(unknownWords, knownWords)
-    onFinish({
-      cumulativeUnknown: [...cumulativeUnknown, ...unknownWords],
-      cumulativeKnown:   [...cumulativeKnown, ...knownWords],
-    })
+    const finalUnknown = [...cumulativeUnknown, ...unknownWords]
+    const finalKnown   = [...cumulativeKnown, ...knownWords]
+    await recordUnknownWords(unknownWords)
+    await recordKnownWords(finalKnown)
+    onFinish({ cumulativeUnknown: finalUnknown, cumulativeKnown: finalKnown })
   }
 
   // ── 結果画面（5秒カウントダウン→自動で次のラウンド） ──
