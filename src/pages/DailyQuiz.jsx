@@ -1333,7 +1333,7 @@ function SortingScreen({ initialQuestions, onFinish, onHome }) {
     for (const word of words) {
       const card = await db.cards.where('wordId').equals(word.id).first()
       if (card) {
-        const next = { sortUnknownCount: (card.sortUnknownCount ?? 0) + 1, sortKnownStreak: 0, sortLastKnownAt: null, lastReviewed: now }
+        const next = { sortUnknownCount: (card.sortUnknownCount ?? 0) + 1, incorrectCount: (card.incorrectCount ?? 0) + 1, sortKnownStreak: 0, sortLastKnownAt: null, lastReviewed: now }
         await db.cards.update(card.id, next).catch(() => {})
         if (userId) syncCard(userId, word.leapNumber, word.word, { ...card, ...next })
       }
