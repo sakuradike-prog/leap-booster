@@ -31,8 +31,9 @@ const _wrong   = makeAudio('/不正解.m4a')
 export function playCorrect() {
   if (!isSoundEnabled() || !_correct) return
   try {
-    _correct.currentTime = 0
-    _correct.play().catch(() => {})
+    // cloneNode() で毎回フレッシュなインスタンスを使う
+    // （同一インスタンスの再利用だと seek 中に play() が失敗して無音になる）
+    _correct.cloneNode().play().catch(() => {})
   } catch { /* ignore */ }
 }
 
@@ -40,7 +41,6 @@ export function playCorrect() {
 export function playWrong() {
   if (!isSoundEnabled() || !_wrong) return
   try {
-    _wrong.currentTime = 0
-    _wrong.play().catch(() => {})
+    _wrong.cloneNode().play().catch(() => {})
   } catch { /* ignore */ }
 }
